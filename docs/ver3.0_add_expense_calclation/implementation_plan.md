@@ -1,126 +1,64 @@
-# 実装計画: Wedding Fund アプリ修正（更新版）
+# 実装計画: Wedding Fund アプリ修正（出費計算リニューアル）
 
 ## 概要
+ユーザーからの追加要件に基づき、以下の修正を行います。
 
-以下の修正・機能追加を行います。
-
-1. `weddingDate` → `proposeDate`（`String?` 型、`yyyy/mm` 形式入力）
-2. `BasicInfoData` に `monthlyExpense`（月の固定出費）を追加
-3. **BasicInfoData の全費用項目**を `ExpenseItem` という統合モデルに変換し、ドラッグで順番変更・各項目の購入可能時期を表示
-4. ホーム画面に「**時期計算**」「**出費額計算**」の2つのモードを追加
+1. **データマイグレーション処理の削除**: 旧データからの移行が完了したため、移行用コードを削除します。
+2. **`proposeDate` の保存不具合修正**: 保存処理と読み込み処理を見直し、確実に保存・反映されるようにします。
+3. **時期計算の仕様変更**: 「賄える時期」がプロポーズ予定年月より前になる場合、プロポーズ予定年月（最短時期）として表示するように修正します。
+4. **出費計算の全面リニューアル**: 
+   - `ExpenseItem`（各費用項目）に個別の `targetDate`（目標時期: yyyy/mm）を追加します。
+   - `BasicInfoData` の「プロポーズ予定年月」とは別に、各項目の目標時期を設定できるようにします。（未設定の場合はプロポーズ予定年月をデフォルトとして扱います）
+   - 新しい出費計算アルゴリズム: 各項目の目標時期までに必要な金額をすべて達成するために、「**毎月の出費額（固定）を最大いくらに抑えればよいか**」を逆算します。
+   - ※このモードでは、ユーザーが入力した `monthlyExpense` は使用しません。
 
 ---
 
-## 主要設計変更：費用項目の統合
+## 変更内容詳細
 
-現在 `BasicInfoData` にある固定費用フィールド（婚約指輪、結婚指輪、式、ハネムーン、引越し費用）と `furnitures`（家財道具リスト）を、**全て統合した `List<ExpenseItem>` に置き換えます**。
+### 1. モデル層の更新
+#### [MODIFY] `expense_item.dart`
+- `String? targetDate;` （yyyy/mm形式）を追加します。
+- `dart run build_runner build` を実行してコードを再生成します。
 
-```dart
-// 新モデル
-class ExpenseItem {
-  String id;
-  String name;   // 例: '婚約指輪', '冷蔵庫'
-  int cost;      // 費用（円）
-  int order;     // 表示順（ドラッグで変更）
-}
+### 2. Provider層の更新
+#### [MODIFY] `app_state_provider.dart`
+- **移行コード削除**: `_migrateBasicInfoData` を削除し、直接 `BasicInfoData.fromJson` を使用します。
+- **時期計算の修正 (`ItemAffordabilityCalculation`)**:
+  - 計算された `affordableMonth` が `proposeDate` よりも前の場合、`proposeDate` に置き換えます。
+- **出費計算のリニューアル (`FinancialCalculation`)**:
+  - 全 ExpenseItem と savingsGoal について、それぞれの `targetDate`（月数 $M$）までの累積必要額を集計します。
+  - 各目標地点 $M$ において、`必要な毎月の貯金額 = (累積必要額 - 現在の貯金 - その時点までのボーナス総額) / M` を計算します。
+  - `許容される毎月の出費額 = 月収 - 必要な毎月の貯金額` となります。
+  - すべての目標地点をクリアするために、**最も厳しい（一番少ない）許容出費額** を最終的な結果として算出します。
+
+### 3. UI層の更新
+#### [MODIFY] `basic_info_screen.dart`
+- **項目追加/編集ダイアログ**: `targetDate` (目標時期 yyyy/mm) の入力フィールドを追加します。
+- **リスト表示**: 各アイテムのカードに目標時期を表示します。
+- `proposeDate` の保存処理を修正します。
+
+#### [MODIFY] `home_screen.dart`
+- **出費計算モードの表示更新**: 
+  - 算出された「毎月の許容出費額」を表示します。
+  - もし計算結果がマイナスになる場合（出費を0にしても目標を達成できない場合）は、アラートとともに不足状況を表示します。
+
+---
+
+## 新しい出費計算アルゴリズムについて
+```
+全目標のリスト = expenses (それぞれのtargetDate) + savingsGoal (proposeDate)
+
+1. 全目標を targetDate 順に並び替え
+2. 累積必要額を計算していく
+3. 各 targetDate までの月数 M を算出
+4. 各 M について:
+   必要貯金額/月 = (累積必要額 - 現在の貯金 - Mヶ月目までのボーナス) / M
+   許容出費額/月 = 月の収入 - 必要貯金額/月
+5. すべての M の中から「最小の許容出費額/月」を見つける
+6. その金額が、すべての目標を達成するための「毎月のやりくり上限額」となる
 ```
 
-`BasicInfoData` は以下のように変わります：
-
-| 変更前 | 変更後 |
-|---|---|
-| `DateTime? weddingDate` | `String? proposeDate`（`yyyy/mm`形式） |
-| `int engagementRing` | → `ExpenseItem` として `expenses` リストに統合 |
-| `int weddingRing` | → 同上 |
-| `int weddingCeremony` | → 同上 |
-| `int honeymoon` | → 同上 |
-| `int movingCost` | → 同上 |
-| `List<FurnitureItem> furnitures` | → 同上（家財道具もExpenseItemとして統合） |
-| `int savingsGoal` | そのまま残す |
-| *(新規)* | `int monthlyExpense`（月の固定出費） |
-| *(新規)* | `List<ExpenseItem> expenses` |
-
-> [!WARNING]
-> Firestore に既存データがある場合、旧フォーマットとの互換性のため `fromJson` で移行処理を行います。
-
----
-
-## 変更ファイル一覧
-
-### モデル層
-
-#### [NEW] `expense_item.dart` / `expense_item.freezed.dart` / `expense_item.g.dart`
-- `id`, `name`, `cost`, `order` フィールドを持つ freezed モデル
-
-#### [MODIFY] [basic_info_data.dart](file:///Users/itta/dev/dart/wedding_fund/lib/models/basic_info_data.dart)
-- `proposeDate`（`String?`）追加、`weddingDate` 削除
-- `expenses`（`List<ExpenseItem>`）追加
-- `monthlyExpense`（`int`）追加
-- 旧フィールド（`engagementRing` 等）削除
-- `totalRequiredFunds` を `expenses` の合計 + `savingsGoal` に変更
-
-#### [DELETE] `furniture_item.dart` / `.freezed.dart` / `.g.dart`
-- `ExpenseItem` に統合するため削除
-
----
-
-### プロバイダー層
-
-#### [MODIFY] [app_state_provider.dart](file:///Users/itta/dev/dart/wedding_fund/lib/providers/app_state_provider.dart)
-- `FinancialCalculation` を **2モード対応**に変更
-- `weddingDate` → `proposeDate`（`yyyy/mm` → `DateTime` 変換）
-- 新規: `ItemAffordabilityCalculation` プロバイダーを追加（各アイテムの購入可能時期を計算）
-
----
-
-### UI層
-
-#### [MODIFY] [basic_info_screen.dart](file:///Users/itta/dev/dart/wedding_fund/lib/screens/basic_info_screen.dart)
-- `proposeDate` をテキスト入力（`yyyy/mm`バリデーション付き）に変更
-- `monthlyExpense` 入力フィールドを追加
-- 家財道具セクション廃止 → `expenses` を `ReorderableListView` で表示・並び替え
-- アイテム追加ダイアログを汎用化（品名・金額の入力）
-- 初期データに「婚約指輪」「結婚指輪」「結婚式」「新婚旅行」「新居の契約金」を自動追加
-
-#### [MODIFY] [home_screen.dart](file:///Users/itta/dev/dart/wedding_fund/lib/screens/home_screen.dart)
-- 「**出費額計算**」「**時期計算**」の2つのモードをタブまたはボタンで切り替え
-  - **出費額計算**: `proposeDate` を目標として月の許容出費額を逆算（現行機能）
-  - **時期計算**: 各 `ExpenseItem` を `order` 順に並べ、累積で何ヶ月後に賄えるかを計算・表示
-
----
-
-## 購入可能時期 アルゴリズム（時期計算モード）
-
-```
-現在時点: now（現在月）
-現在の貯金: currentSavings
-月次収入: monthlyIncome（月末着）
-月次出費: monthlyExpense（固定）
-純月次増加: monthlyIncome - monthlyExpense
-
-累積必要額 = 0
-各アイテム（order順）:
-  累積必要額 += item.cost
-  m = 0
-  ループ（最大600ヶ月）:
-    m += 1
-    貯金見込み = currentSavings
-                + monthlyIncome * m      // 月末着収入
-                - monthlyExpense * m     // 固定出費
-                + ボーナス分（その月までの回数 × bonusAmount）
-    if 貯金見込み >= 累積必要額:
-      購入可能月 = now + m ヶ月 + 1ヶ月  // 月末受取なので翌月
-      表示: yyyy/mm 形式
-      break
-  if 上限超過: '計算不可' と表示
-```
-
----
-
-## 検証計画
-
-- `flutter pub run build_runner build --delete-conflicting-outputs` で freezed 再生成
-- `flutter run` でビルド・動作確認
-- `expenses` リストのドラッグ並び替え動作確認
-- 時期計算・出費額計算の両モードで結果を手動検証
-- 旧データとの互換性（fromJson）確認
+> [!NOTE]
+> **確認事項**
+> この設計でよろしければ、実装に進みます。問題なければ「承認」をお願いします。
