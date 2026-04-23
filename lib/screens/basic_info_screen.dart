@@ -1,0 +1,381 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../models/basic_info_data.dart';
+import '../models/expense_item.dart';
+import '../providers/app_state_provider.dart' as atp;
+
+class BasicInfoScreen extends ConsumerStatefulWidget {
+  const BasicInfoScreen({super.key});
+
+  @override
+  ConsumerState<BasicInfoScreen> createState() => _BasicInfoScreenState();
+}
+
+class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
+  late TextEditingController _proposeDateController;
+  late TextEditingController _monthlyExpenseController;
+  late TextEditingController _savingsGoalController;
+  List<ExpenseItem> _expenses = [];
+
+  bool _isSaving = false;
+  bool _isInitialized = false;
+
+  static const List<Map<String, String>> _defaultItems = [
+    {'id': 'engagement_ring', 'name': '婚約指輪'},
+    {'id': 'wedding_ring', 'name': '結婚指輪'},
+    {'id': 'wedding_ceremony', 'name': '結婚式'},
+    {'id': 'honeymoon', 'name': '新婚旅行'},
+    {'id': 'moving_cost', 'name': '新居の契約金'},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _proposeDateController = TextEditingController();
+    _monthlyExpenseController = TextEditingController();
+    _savingsGoalController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _proposeDateController.dispose();
+    _monthlyExpenseController.dispose();
+    _savingsGoalController.dispose();
+    super.dispose();
+  }
+
+  void _loadData(BasicInfoData data) {
+    if (!_isInitialized) {
+      _proposeDateController.text = data.proposeDate ?? '';
+      _monthlyExpenseController.text = data.monthlyExpense.toString();
+      _savingsGoalController.text = data.savingsGoal.toString();
+
+      // expenses が空の場合はデフォルト5項目を追加
+      if (data.expenses.isEmpty) {
+        _expenses = _defaultItems.asMap().entries.map((e) {
+          return ExpenseItem(
+            id: e.value['id']!,
+            name: e.value['name']!,
+            cost: 0,
+            order: e.key,
+          );
+        }).toList();
+      } else {
+        _expenses = List.from(data.expenses)
+          ..sort((a, b) => a.order.compareTo(b.order));
+      }
+
+      _isInitialized = true;
+    }
+  }
+
+  bool _isValidProposeDate(String value) {
+    if (value.isEmpty) return true;
+    final regex = RegExp(r'^\d{4}/\d{2}$');
+    if (!regex.hasMatch(value)) return false;
+    final parts = value.split('/');
+    final month = int.tryParse(parts[1]);
+    return month != null && month >= 1 && month <= 12;
+  }
+
+  void _addExpenseItem() {
+    final nameCtl = TextEditingController();
+    final costCtl = TextEditingController();
+    final targetDateCtl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('費用項目を追加'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtl,
+                decoration: const InputDecoration(labelText: '項目名 (例: 冷蔵庫)'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: costCtl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: '金額 (円)'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: targetDateCtl,
+                decoration: const InputDecoration(labelText: '目標時期 (yyyy/mm, 任意)'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('キャンセル'),
+            ),
+            TextButton(
+              onPressed: () {
+                final dateTxt = targetDateCtl.text.trim();
+                if (dateTxt.isNotEmpty && !_isValidProposeDate(dateTxt)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('目標時期は yyyy/mm 形式で入力してください')),
+                  );
+                  return;
+                }
+                final cost = int.tryParse(costCtl.text) ?? 0;
+                setState(() {
+                  _expenses.add(ExpenseItem(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    name: nameCtl.text,
+                    cost: cost,
+                    order: _expenses.length,
+                    targetDate: dateTxt.isEmpty ? null : dateTxt,
+                  ));
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('追加'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _editExpenseItem(int index) {
+    final item = _expenses[index];
+    final nameCtl = TextEditingController(text: item.name);
+    final costCtl = TextEditingController(text: item.cost.toString());
+    final targetDateCtl = TextEditingController(text: item.targetDate ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('費用項目を編集'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtl,
+                decoration: const InputDecoration(labelText: '項目名'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: costCtl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: '金額 (円)'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: targetDateCtl,
+                decoration: const InputDecoration(labelText: '目標時期 (yyyy/mm, 任意)'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('キャンセル'),
+            ),
+            TextButton(
+              onPressed: () {
+                final dateTxt = targetDateCtl.text.trim();
+                if (dateTxt.isNotEmpty && !_isValidProposeDate(dateTxt)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('目標時期は yyyy/mm 形式で入力してください')),
+                  );
+                  return;
+                }
+                final cost = int.tryParse(costCtl.text) ?? 0;
+                setState(() {
+                  _expenses[index] = item.copyWith(
+                    name: nameCtl.text,
+                    cost: cost,
+                    targetDate: dateTxt.isEmpty ? null : dateTxt,
+                  );
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('保存'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _onReorder(int oldIndex, int newIndex) {
+    setState(() {
+      if (newIndex > oldIndex) newIndex -= 1;
+      final item = _expenses.removeAt(oldIndex);
+      _expenses.insert(newIndex, item);
+      // order を振り直す
+      for (int i = 0; i < _expenses.length; i++) {
+        _expenses[i] = _expenses[i].copyWith(order: i);
+      }
+    });
+  }
+
+  Future<void> _save() async {
+    final proposeDate = _proposeDateController.text.trim();
+    if (proposeDate.isNotEmpty && !_isValidProposeDate(proposeDate)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('プロポーズ予定年月は yyyy/mm の形式で入力してください (例: 2027/06)')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    final data = BasicInfoData(
+      proposeDate: proposeDate.isEmpty ? null : proposeDate,
+      monthlyExpense: int.tryParse(_monthlyExpenseController.text) ?? 0,
+      savingsGoal: int.tryParse(_savingsGoalController.text) ?? 0,
+      expenses: _expenses,
+    );
+
+    await ref.read(atp.basicInfoDataProvider.notifier).updateBasicInfo(data);
+
+    if (mounted) {
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('保存しました')));
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final basicInfoAsync = ref.watch(atp.basicInfoDataProvider);
+    final currencyFormatter =
+        NumberFormat.currency(locale: 'ja_JP', symbol: '¥');
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('基本情報管理')),
+      body: basicInfoAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text('エラー: $err')),
+        data: (data) {
+          _loadData(data);
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // プロポーズ予定年月
+                _buildField(
+                  'プロポーズ予定年月 (yyyy/mm)',
+                  _proposeDateController,
+                  keyboardType: TextInputType.text,
+                  hint: '例: 2027/06',
+                ),
+                // 月の固定出費
+                _buildField('月の固定出費額 (円)', _monthlyExpenseController),
+                // 必要な貯金目標額
+                _buildField('必要な貯金目標額 (円)', _savingsGoalController),
+
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      '費用項目（ドラッグで順番変更）',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    TextButton.icon(
+                      onPressed: _addExpenseItem,
+                      icon: const Icon(Icons.add),
+                      label: const Text('追加'),
+                    ),
+                  ],
+                ),
+                const Text(
+                  '上から順に優先度が高い順（時期計算に使用）',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 8),
+
+                // ReorderableListView
+                ReorderableListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _expenses.length,
+                  onReorder: _onReorder,
+                  itemBuilder: (context, index) {
+                    final item = _expenses[index];
+                    return Card(
+                      key: ValueKey(item.id),
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      child: ListTile(
+                        leading: ReorderableDragStartListener(
+                          index: index,
+                          child: const Icon(Icons.drag_handle,
+                              color: Colors.grey),
+                        ),
+                        title: Text(item.name),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(currencyFormatter.format(item.cost)),
+                            if (item.targetDate != null)
+                              Text('目標: ${item.targetDate}', style: const TextStyle(fontSize: 12, color: Colors.blue)),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit,
+                                  color: Colors.blueGrey),
+                              onPressed: () => _editExpenseItem(index),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete,
+                                  color: Colors.red),
+                              onPressed: () => setState(
+                                  () => _expenses.removeAt(index)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: _isSaving ? null : _save,
+                  child: _isSaving
+                      ? const CircularProgressIndicator()
+                      : const Text('保存する'),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildField(
+    String label,
+    TextEditingController controller, {
+    TextInputType keyboardType = TextInputType.number,
+    String? hint,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          border: const OutlineInputBorder(),
+        ),
+      ),
+    );
+  }
+}

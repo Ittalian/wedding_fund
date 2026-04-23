@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "475424729591",
+    "project_id": "wedding-fund-a1ca8",
+    "storage_bucket": "wedding-fund-a1ca8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:475424729591:android:58b8ee05f32ad661e066f2",
+        "android_client_info": {
+          "package_name": "com.example.wedding_fund"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBXu3hi6Zxj8WVO_gvxqNaN7gNuj9bZfOQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

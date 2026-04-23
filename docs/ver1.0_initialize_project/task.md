@@ -1,0 +1,11 @@
+- `[x]` プロジェクトの作成 (`flutter create wedding_fund`)
+- `[/]` 必要なパッケージの追加 (riverpod, freezed, firebase_core, cloud_firestore 等)
+- `[ ]` 状態管理とデータモデルの作成
+   - AssetsData モデルとボーナス月ベースの計算ロジックの実装
+   - BasicInfoData モデルの実装
+- `[ ]` アプリの基盤構築 (main.dartの準備、Firebase初期化・匿名ログインのエントリなど)
+- `[ ]` 画面の作成
+   - `[ ]` 財産管理画面 (ボーナス月の選択UIなど)
+   - `[ ]` 基本情報管理画面 (家財道具のリスト追加など)
+   - `[ ]` ホーム画面 (金額予測表示、未入力時のアラートなど)
+- `[ ]` セットアップ手順資料(`setup_guide.md`)の作成
