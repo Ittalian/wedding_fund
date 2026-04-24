@@ -1,17 +1,45 @@
-# wedding_fund
+# Wedding Fund
 
-A new Flutter project.
+結婚・同棲に向けたふたりの資金計画をサポートするスマホアプリケーションです。
+目標とするライフイベント（結婚式、指輪購入、引越しなど）に向けて、現在の収入と貯蓄から毎月いくらまで自由に使えるか（またはいくら貯金すべきか）を算出し、無理のない資金計画を立てることができます。
 
-## Getting Started
+## 主な機能
 
-This project is a starting point for a Flutter application.
+* **基本情報管理**: 毎月の世帯手取り収入、現在の貯蓄額、プロポーズ時期、最終的な目標貯蓄額などを設定できます。
+* **ライフイベント（支出）管理**: 結婚式、婚約指輪、新居費用など、将来予定している支出項目を、それぞれの目標時期（年月）と目標金額とともに柔軟に登録できます。
+* **資金計画の自動計算**: 設定した収入・貯蓄・目標と、各支出予定の時期・金額に基づき、すべての目標を達成するために必要な「毎月の最大許容支出額（自由に使えるお金）」を自動計算します。
+* **赤字解消サジェスト機能**: もし現在の計画が赤字（目標を達成できない状態）になる場合、目標を達成するために「どの支出項目をいくら減額すべきか（減額サジェスト）」、または「時期をいつまで遅らせるべきか（延期サジェスト）」をアプリが具体的に提案します。
+* **入力サポート**: 日付入力（`yyyy/MM` 形式）や金額入力時のバリデーションが実装されており、正確な計画作成をサポートします。
 
-A few resources to get you started if this is your first Flutter project:
+## 技術スタック
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+* **フレームワーク**: Flutter
+* **状態管理**: Riverpod (`flutter_riverpod`, `riverpod_annotation`)
+* **データモデル**: Freezed (`freezed_annotation`) / `json_serializable`
+* **バックエンド**: Firebase (Authentication, Cloud Firestore) ※パッケージ導入済
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## プロジェクト構成
+
+* `lib/models/`: アプリ内で使用するデータモデル（`ExpenseItem`, `BasicInfoData`, `AssetsData` 等）
+* `lib/providers/`: Riverpodによる状態管理・ロジック層（`AppStateProvider` で資金計算とサジェスト算出を実施）
+* `lib/screens/`: UI画面群（`HomeScreen`, `BasicInfoScreen`, `AssetsScreen`）
+
+## 開発・実行手順
+
+1. リポジトリをクローンまたはダウンロードします。
+2. 依存パッケージをインストールします。
+   ```bash
+   flutter pub get
+   ```
+3. FreezedやRiverpod Generatorによる自動生成コードを作成します。
+   ```bash
+   dart run build_runner build -d
+   ```
+4. アプリを実行します。
+   ```bash
+   flutter run
+   ```
+
+## 今後の展望
+* Firebaseを用いたデータ永続化や複数ユーザー（カップル間）でのリアルタイムデータ共有機能の有効化。
+* より詳細なグラフによる資産推移の可視化。
