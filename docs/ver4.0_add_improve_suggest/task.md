@@ -1,0 +1,4 @@
+- `[x]` Update `FinancialCalculation` in `app_state_provider.dart` to calculate `reductionSuggestions`.
+- `[x]` Update `FinancialCalculation` in `app_state_provider.dart` to calculate `delaySuggestions`.
+- `[x]` Update `HomeScreen` in `home_screen.dart` to display the "Suggestions to resolve deficit" UI section.
+- `[x]` Verify the changes.
