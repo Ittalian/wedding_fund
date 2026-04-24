@@ -473,7 +473,7 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(fmt.format(item.cost)),
-            if (item.targetDate != null && _mode == _InfoMode.timing)
+            if (item.targetDate != null && _mode == _InfoMode.expense)
               Text('目標: ${item.targetDate}', style: const TextStyle(fontSize: 12, color: Colors.blue)),
           ],
         ),
