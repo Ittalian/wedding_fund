@@ -29,8 +29,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Spacer(),
-
               // モード切り替えボタン
               SegmentedButton<_CalcMode>(
                 segments: const [
@@ -52,11 +50,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: 16),
 
               if (_mode == _CalcMode.expense)
-                _buildExpenseMode(currencyFormatter)
+                Expanded(child: SingleChildScrollView(child: _buildExpenseMode(currencyFormatter)))
               else
-                _buildTimingMode(currencyFormatter),
+                Expanded(child: SingleChildScrollView(child: _buildTimingMode(currencyFormatter))),
 
-              const Spacer(),
+              const SizedBox(height: 16),
 
               ElevatedButton.icon(
                 onPressed: () => Navigator.push(context,
@@ -95,8 +93,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final calcData = ref.watch(financialCalculationProvider);
 
     if (calcData['isDataReady'] == true &&
-        calcData['message'] != null &&
-        (calcData['message'] as String).contains('達成')) {
+        calcData['isDeficit'] == false &&
+        calcData['message'] != null) {
       return Card(
         color: Colors.green.shade50,
         elevation: 0,
@@ -104,7 +102,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           padding: const EdgeInsets.all(16.0),
           child: Text(
             calcData['message'],
-            style: const TextStyle(fontSize: 18, color: Colors.green),
+            style: const TextStyle(fontSize: 17, color: Colors.green),
             textAlign: TextAlign.center,
           ),
         ),
@@ -112,34 +110,115 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     if (calcData['isDataReady'] == false || calcData['isDeficit'] == true) {
-      return Card(
-        color: Colors.red.shade50,
-        elevation: 0,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              const Icon(Icons.warning_amber_rounded,
-                  color: Colors.red, size: 48),
-              const SizedBox(height: 8),
-              Text(
-                calcData['message'] ?? '情報を入力してください',
-                style: const TextStyle(fontSize: 16, color: Colors.red),
-                textAlign: TextAlign.center,
-              ),
-              if (calcData['isDeficit'] == true && calcData['deficitAmount'] != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    '現在不足額: ${fmt.format(calcData['deficitAmount'])}\n\n'
-                    '計画や目標を見直してください。',
-                    style: const TextStyle(fontSize: 12),
+      final reductionSuggestions = calcData['reductionSuggestions'] as List<dynamic>?;
+      final delaySuggestions = calcData['delaySuggestions'] as List<dynamic>?;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Card(
+            color: Colors.red.shade50,
+            elevation: 0,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const Icon(Icons.warning_amber_rounded,
+                      color: Colors.red, size: 48),
+                  const SizedBox(height: 8),
+                  Text(
+                    calcData['message'] ?? '情報を入力してください',
+                    style: const TextStyle(fontSize: 16, color: Colors.red),
                     textAlign: TextAlign.center,
                   ),
-                ),
-            ],
+                  if (calcData['isDeficit'] == true && calcData['deficitAmount'] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        '現在不足額: ${fmt.format(calcData['deficitAmount'])}\n\n'
+                        '計画や目標を見直してください。',
+                        style: const TextStyle(fontSize: 12),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
-        ),
+          if (calcData['isDeficit'] == true && (reductionSuggestions != null || delaySuggestions != null)) ...[
+            const SizedBox(height: 16),
+            const Text(
+              '不足を解消するための提案',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            // 減額提案
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.money_off, color: Colors.teal, size: 20),
+                        SizedBox(width: 8),
+                        Text('費用の減額見直し', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (reductionSuggestions != null && reductionSuggestions.isNotEmpty)
+                      ...reductionSuggestions.map((s) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text('・${s['name']} を ${fmt.format(s['suggestedCost'])} 以下にする',
+                                style: const TextStyle(fontSize: 13)),
+                          ))
+                    else
+                      const Text('1つの項目だけでは不足を補えません。\n複数の項目を合わせて減額するか、時期の延長をご検討ください。',
+                          style: TextStyle(fontSize: 13, color: Colors.grey)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // 時期提案
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.update, color: Colors.indigo, size: 20),
+                        SizedBox(width: 8),
+                        Text('費用の時期見直し', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (delaySuggestions != null && delaySuggestions.isNotEmpty)
+                      ...delaySuggestions.map((s) {
+                        final items = (s['items'] as List<dynamic>).join('・');
+                        final date = s['requiredDate'] as DateTime;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text('・$items を ${date.year}年${date.month}月 まで伸ばす',
+                              style: const TextStyle(fontSize: 13)),
+                        );
+                      })
+                    else
+                      const Text('現在の収入では時期を伸ばしても達成が困難です。\n収入を増やすか費用を減額してください。',
+                          style: TextStyle(fontSize: 13, color: Colors.grey)),
+                  ],
+                ),
+              ),
+            ),
+          ]
+        ],
       );
     }
 

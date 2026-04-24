@@ -181,6 +181,145 @@ class FinancialCalculation extends _$FinancialCalculation {
       minAllowedExpense = assets.monthlyIncome;
     }
 
+    List<Map<String, dynamic>> reductionSuggestions = [];
+    List<Map<String, dynamic>> delaySuggestions = [];
+
+    if (isImpossible || minAllowedExpense < 0) {
+      // 内部ヘルパー：特定の BasicInfoData で不足になるかを判定
+      bool isPlanDeficit(BasicInfoData testInfo) {
+        List<Map<String, dynamic>> testTargets = [];
+        for (final item in testInfo.expenses) {
+          final dateToUse = item.targetDate != null && item.targetDate!.isNotEmpty
+              ? _parseProposeDate(item.targetDate) ?? proposeDateParsed
+              : proposeDateParsed;
+          testTargets.add({'cost': item.cost, 'date': dateToUse});
+        }
+        if (testInfo.savingsGoal > 0) {
+          testTargets.add({'cost': testInfo.savingsGoal, 'date': proposeDateParsed});
+        }
+        testTargets.sort((a, b) {
+          final dtA = a['date'] as DateTime;
+          final dtB = b['date'] as DateTime;
+          return dtA.compareTo(dtB);
+        });
+
+        int tempCum = 0;
+        int tempMin = -1;
+        bool tempImp = false;
+        for (int i = 0; i < testTargets.length; i++) {
+          tempCum += testTargets[i]['cost'] as int;
+          final tDate = testTargets[i]['date'] as DateTime;
+          int mLeft = (tDate.year - now.year) * 12 + tDate.month - now.month;
+          if (mLeft < 0) mLeft = 0;
+          int fBonus = 0;
+          for (int m = 1; m <= mLeft; m++) {
+            final cm = DateTime(now.year, now.month + m, 1);
+            if (assets.bonusMonths.contains(cm.month)) fBonus++;
+          }
+          final eBonus = fBonus * assets.bonusAmount;
+          if (mLeft == 0) {
+            if (assets.currentSavings < tempCum) {
+              tempImp = true;
+              break;
+            }
+          } else {
+            final reqAdd = tempCum - assets.currentSavings - eBonus;
+            int reqMo = reqAdd > 0 ? (reqAdd / mLeft).ceil() : 0;
+            final allowed = assets.monthlyIncome - reqMo;
+            if (tempMin == -1 || allowed < tempMin) tempMin = allowed;
+          }
+        }
+        return tempImp || tempMin < 0;
+      }
+
+      // 1. 各項目の減額提案を計算
+      for (int i = 0; i < basicInfo.expenses.length; i++) {
+        final item = basicInfo.expenses[i];
+        if (item.cost <= 0) continue;
+        int left = 0;
+        int right = item.cost - 1;
+        int bestValid = -1;
+        while (left <= right) {
+          int mid = left + (right - left) ~/ 2;
+          final testExpenses = [...basicInfo.expenses];
+          testExpenses[i] = item.copyWith(cost: mid);
+          if (!isPlanDeficit(basicInfo.copyWith(expenses: testExpenses))) {
+            bestValid = mid;
+            left = mid + 1; // 減額幅をなるべく小さく（costを大きく）したい
+          } else {
+            right = mid - 1;
+          }
+        }
+        if (bestValid != -1) {
+          reductionSuggestions.add({'name': item.name, 'suggestedCost': bestValid});
+        }
+      }
+      if (basicInfo.savingsGoal > 0) {
+        int left = 0;
+        int right = basicInfo.savingsGoal - 1;
+        int bestValid = -1;
+        while (left <= right) {
+          int mid = left + (right - left) ~/ 2;
+          if (!isPlanDeficit(basicInfo.copyWith(savingsGoal: mid))) {
+            bestValid = mid;
+            left = mid + 1;
+          } else {
+            right = mid - 1;
+          }
+        }
+        if (bestValid != -1) {
+          reductionSuggestions.add({'name': '目標貯金', 'suggestedCost': bestValid});
+        }
+      }
+
+      // 2. 時期の見直し提案を計算
+      Map<DateTime, int> cumulativeByDate = {};
+      int totalSoFar = 0;
+      for (final t in targets) {
+        totalSoFar += t['cost'] as int;
+        cumulativeByDate[t['date'] as DateTime] = totalSoFar;
+      }
+
+      int netMonthly = assets.monthlyIncome - basicInfo.monthlyExpense;
+      if (netMonthly > 0 || assets.bonusAmount > 0) {
+        cumulativeByDate.forEach((targetDate, cumulativeNeeded) {
+          DateTime requiredDate = now;
+          bool canAfford = false;
+          for (int m = 0; m <= 600; m++) {
+            int bonusCount = 0;
+            for (int i = 1; i <= m; i++) {
+              final checkMonth = DateTime(now.year, now.month + i, 1);
+              if (assets.bonusMonths.contains(checkMonth.month)) bonusCount++;
+            }
+            int projected = assets.currentSavings + netMonthly * m + bonusCount * assets.bonusAmount;
+            if (projected >= cumulativeNeeded) {
+              requiredDate = DateTime(now.year, now.month + m, 1);
+              canAfford = true;
+              break;
+            }
+          }
+
+          if (canAfford && requiredDate.isAfter(targetDate)) {
+            List<String> itemsHere = [];
+            for (final item in basicInfo.expenses) {
+              final d = item.targetDate != null && item.targetDate!.isNotEmpty
+                  ? _parseProposeDate(item.targetDate) ?? proposeDateParsed
+                  : proposeDateParsed;
+              if (d == targetDate) itemsHere.add(item.name);
+            }
+            // if (targetDate == proposeDateParsed && basicInfo.savingsGoal > 0) {
+            //   itemsHere.add('目標貯金');
+            // }
+            delaySuggestions.add({
+              'items': itemsHere,
+              'requiredDate': requiredDate,
+              'originalDate': targetDate,
+            });
+          }
+        });
+      }
+    }
+
     if (isImpossible || minAllowedExpense < 0) {
       return {
         'isDataReady': true,
@@ -189,6 +328,8 @@ class FinancialCalculation extends _$FinancialCalculation {
         'monthlyAllowedExpense': 0,
         'targetSavings': cumulativeCost,
         'deficitAmount': isImpossible ? deficitAmount : minAllowedExpense.abs(),
+        'reductionSuggestions': reductionSuggestions,
+        'delaySuggestions': delaySuggestions,
       };
     }
 
