@@ -15,6 +15,7 @@ class BasicInfoScreen extends ConsumerStatefulWidget {
 enum _InfoMode { expense, timing }
 
 class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
+  final _formKey = GlobalKey<FormState>();
   late TextEditingController _proposeDateController;
   late TextEditingController _monthlyExpenseController;
   late TextEditingController _savingsGoalController;
@@ -118,33 +119,55 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
     final nameCtl = TextEditingController();
     final costCtl = TextEditingController();
     final targetDateCtl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('費用項目を追加'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtl,
-                decoration: const InputDecoration(labelText: '項目名 (例: 冷蔵庫)'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: costCtl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: '金額 (円)'),
-              ),
-              if (_mode == _InfoMode.expense) ...[
-                const SizedBox(height: 8),
-                TextField(
-                  controller: targetDateCtl,
-                  decoration: const InputDecoration(labelText: '目標時期 (yyyy/mm)'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameCtl,
+                  decoration: const InputDecoration(labelText: '項目名 (例: 冷蔵庫)'),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return '必須項目です';
+                    }
+                    return null;
+                  },
                 ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: costCtl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: '金額 (円)'),
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty && int.tryParse(value) == null) {
+                      return '数値で入力してください';
+                    }
+                    return null;
+                  },
+                ),
+                if (_mode == _InfoMode.expense) ...[
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: targetDateCtl,
+                    decoration: const InputDecoration(labelText: '目標時期 (yyyy/mm)'),
+                    validator: (value) {
+                      if (value != null && value.isNotEmpty && !_isValidProposeDate(value)) {
+                        return 'yyyy/mm形式で入力してください';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
           actions: [
             TextButton(
@@ -153,20 +176,16 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
             ),
             TextButton(
               onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                
                 final dateTxt = targetDateCtl.text.trim();
                 final newTargetDate = _mode == _InfoMode.expense ? (dateTxt.isEmpty ? null : dateTxt) : null;
 
-                if (_mode == _InfoMode.expense && dateTxt.isNotEmpty && !_isValidProposeDate(dateTxt)) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('目標時期は yyyy/mm 形式で入力してください')),
-                  );
-                  return;
-                }
                 final cost = int.tryParse(costCtl.text) ?? 0;
                 setState(() {
                   _expenses.add(ExpenseItem(
                     id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    name: nameCtl.text,
+                    name: nameCtl.text.trim(),
                     cost: cost,
                     order: _expenses.length,
                     targetDate: newTargetDate,
@@ -186,33 +205,55 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
     final nameCtl = TextEditingController(text: item.name);
     final costCtl = TextEditingController(text: item.cost.toString());
     final targetDateCtl = TextEditingController(text: item.targetDate ?? '');
+    final formKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('費用項目を編集'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtl,
-                decoration: const InputDecoration(labelText: '項目名'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: costCtl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: '金額 (円)'),
-              ),
-              if (_mode == _InfoMode.expense) ...[
-                const SizedBox(height: 8),
-                TextField(
-                  controller: targetDateCtl,
-                  decoration: const InputDecoration(labelText: '目標時期 (yyyy/mm)'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameCtl,
+                  decoration: const InputDecoration(labelText: '項目名'),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return '必須項目です';
+                    }
+                    return null;
+                  },
                 ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: costCtl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: '金額 (円)'),
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty && int.tryParse(value) == null) {
+                      return '数値で入力してください';
+                    }
+                    return null;
+                  },
+                ),
+                if (_mode == _InfoMode.expense) ...[
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: targetDateCtl,
+                    decoration: const InputDecoration(labelText: '目標時期 (yyyy/mm)'),
+                    validator: (value) {
+                      if (value != null && value.isNotEmpty && !_isValidProposeDate(value)) {
+                        return 'yyyy/mm形式で入力してください';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
           actions: [
             TextButton(
@@ -221,21 +262,17 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
             ),
             TextButton(
               onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+
                 final dateTxt = targetDateCtl.text.trim();
                 final newTargetDate = _mode == _InfoMode.expense ? (dateTxt.isEmpty ? null : dateTxt) : item.targetDate;
 
-                if (_mode == _InfoMode.expense && dateTxt.isNotEmpty && !_isValidProposeDate(dateTxt)) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('目標時期は yyyy/mm 形式で入力してください')),
-                  );
-                  return;
-                }
                 final cost = int.tryParse(costCtl.text) ?? 0;
                 final index = _expenses.indexWhere((e) => e.id == item.id);
                 if (index != -1) {
                   setState(() {
                     _expenses[index] = item.copyWith(
-                      name: nameCtl.text,
+                      name: nameCtl.text.trim(),
                       cost: cost,
                       targetDate: newTargetDate,
                     );
@@ -264,15 +301,10 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
   }
 
   Future<void> _save() async {
-    final proposeDate = _proposeDateController.text.trim();
-    if (proposeDate.isNotEmpty && !_isValidProposeDate(proposeDate)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('プロポーズ予定年月は yyyy/mm の形式で入力してください (例: 2027/06)')),
-      );
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
+    final proposeDate = _proposeDateController.text.trim();
     final data = BasicInfoData(
       proposeDate: proposeDate.isEmpty ? null : proposeDate,
       monthlyExpense: int.tryParse(_monthlyExpenseController.text) ?? 0,
@@ -303,22 +335,48 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
         error: (err, stack) => Center(child: Text('エラー: $err')),
         data: (data) {
           _loadData(data);
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // プロポーズ予定年月
-                _buildField(
-                  'プロポーズ予定年月 (yyyy/mm)',
-                  _proposeDateController,
-                  keyboardType: TextInputType.text,
-                  hint: '例: 2027/06',
-                ),
-                // 月の固定出費
-                _buildField('月の固定出費額 (円)', _monthlyExpenseController),
-                // 必要な貯金目標額
-                _buildField('必要な貯金目標額 (円)', _savingsGoalController),
+          return Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // プロポーズ予定年月
+                  _buildField(
+                    'プロポーズ予定年月 (yyyy/mm)',
+                    _proposeDateController,
+                    keyboardType: TextInputType.text,
+                    hint: '例: 2027/06',
+                    validator: (value) {
+                      if (value != null && value.isNotEmpty && !_isValidProposeDate(value)) {
+                        return 'yyyy/mm形式で入力してください';
+                      }
+                      return null;
+                    },
+                  ),
+                  // 月の固定出費
+                  _buildField(
+                    '月の固定出費額 (円)', 
+                    _monthlyExpenseController,
+                    validator: (value) {
+                      if (value != null && value.isNotEmpty && int.tryParse(value) == null) {
+                        return '数値で入力してください';
+                      }
+                      return null;
+                    },
+                  ),
+                  // 必要な貯金目標額
+                  _buildField(
+                    '必要な貯金目標額 (円)', 
+                    _savingsGoalController,
+                    validator: (value) {
+                      if (value != null && value.isNotEmpty && int.tryParse(value) == null) {
+                        return '数値で入力してください';
+                      }
+                      return null;
+                    },
+                  ),
 
                 const SizedBox(height: 16),
                 SegmentedButton<_InfoMode>(
@@ -392,9 +450,10 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                 ),
               ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
+    ),
     );
   }
 
@@ -440,10 +499,11 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
     TextEditingController controller, {
     TextInputType keyboardType = TextInputType.number,
     String? hint,
+    String? Function(String?)? validator,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
-      child: TextField(
+      child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
         decoration: InputDecoration(
@@ -451,6 +511,7 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
           hintText: hint,
           border: const OutlineInputBorder(),
         ),
+        validator: validator,
       ),
     );
   }

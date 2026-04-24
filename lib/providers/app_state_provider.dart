@@ -155,7 +155,7 @@ class FinancialCalculation extends _$FinancialCalculation {
         if (assets.currentSavings < cumulativeCost) {
           isImpossible = true;
           deficitAmount = cumulativeCost - assets.currentSavings;
-          deficitMessage = '目標達成に必要な貯金が不足しています。\n(現在不足額: ¥$deficitAmount)';
+          deficitMessage = '目標達成に必要な貯金が不足しています。\n(不足額: ¥$deficitAmount)';
           break;
         }
       } else {
@@ -324,7 +324,7 @@ class FinancialCalculation extends _$FinancialCalculation {
       return {
         'isDataReady': true,
         'isDeficit': true,
-        'message': isImpossible ? deficitMessage : '現在の収入では目標を達成できません。\n支出を0にしても不足します。',
+        'message': isImpossible ? deficitMessage : '現在の収入では目標を達成できません。',
         'monthlyAllowedExpense': 0,
         'targetSavings': cumulativeCost,
         'deficitAmount': isImpossible ? deficitAmount : minAllowedExpense.abs(),

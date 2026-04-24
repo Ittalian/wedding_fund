@@ -148,7 +148,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           if (calcData['isDeficit'] == true && (reductionSuggestions != null || delaySuggestions != null)) ...[
             const SizedBox(height: 16),
             const Text(
-              '不足を解消するための提案',
+              '改善提案',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
