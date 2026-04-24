@@ -401,7 +401,7 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      _mode == _InfoMode.expense ? '費用項目（自動並び替え）' : '費用項目（ドラッグで優先度変更）',
+                      _mode == _InfoMode.expense ? '費用項目（自動並び替え）' : '費用項目（ドラッグで並び替え）',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     TextButton.icon(
@@ -413,8 +413,8 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                 ),
                 Text(
                   _mode == _InfoMode.expense
-                      ? '目標時期が早い順（ドラッグ不可）'
-                      : '上から順に優先度が高い順（ドラッグで順番変更）',
+                      ? '目標時期(昇順)'
+                      : '時系列(昇順)',
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 const SizedBox(height: 8),
