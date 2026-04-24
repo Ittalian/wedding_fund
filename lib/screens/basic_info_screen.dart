@@ -12,11 +12,14 @@ class BasicInfoScreen extends ConsumerStatefulWidget {
   ConsumerState<BasicInfoScreen> createState() => _BasicInfoScreenState();
 }
 
+enum _InfoMode { expense, timing }
+
 class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
   late TextEditingController _proposeDateController;
   late TextEditingController _monthlyExpenseController;
   late TextEditingController _savingsGoalController;
   List<ExpenseItem> _expenses = [];
+  _InfoMode _mode = _InfoMode.expense;
 
   bool _isSaving = false;
   bool _isInitialized = false;
@@ -79,6 +82,38 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
     return month != null && month >= 1 && month <= 12;
   }
 
+  DateTime? _parseProposeDate(String? date) {
+    if (date == null || date.isEmpty) return null;
+    final parts = date.split('/');
+    if (parts.length != 2) return null;
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    if (year == null || month == null || month < 1 || month > 12) return null;
+    return DateTime(year, month, 1);
+  }
+
+  List<ExpenseItem> _getSortedForExpense() {
+    final list = List<ExpenseItem>.from(_expenses);
+    final defaultDate = _parseProposeDate(_proposeDateController.text);
+    list.sort((a, b) {
+      final dtA = (a.targetDate != null && a.targetDate!.isNotEmpty)
+          ? (_parseProposeDate(a.targetDate) ?? defaultDate)
+          : defaultDate;
+      final dtB = (b.targetDate != null && b.targetDate!.isNotEmpty)
+          ? (_parseProposeDate(b.targetDate) ?? defaultDate)
+          : defaultDate;
+
+      if (dtA == null && dtB == null) return a.order.compareTo(b.order);
+      if (dtA == null) return 1;
+      if (dtB == null) return -1;
+
+      final cmp = dtA.compareTo(dtB);
+      if (cmp != 0) return cmp;
+      return a.order.compareTo(b.order);
+    });
+    return list;
+  }
+
   void _addExpenseItem() {
     final nameCtl = TextEditingController();
     final costCtl = TextEditingController();
@@ -102,11 +137,13 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: '金額 (円)'),
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: targetDateCtl,
-                decoration: const InputDecoration(labelText: '目標時期 (yyyy/mm, 任意)'),
-              ),
+              if (_mode == _InfoMode.expense) ...[
+                const SizedBox(height: 8),
+                TextField(
+                  controller: targetDateCtl,
+                  decoration: const InputDecoration(labelText: '目標時期 (yyyy/mm)'),
+                ),
+              ],
             ],
           ),
           actions: [
@@ -117,7 +154,9 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
             TextButton(
               onPressed: () {
                 final dateTxt = targetDateCtl.text.trim();
-                if (dateTxt.isNotEmpty && !_isValidProposeDate(dateTxt)) {
+                final newTargetDate = _mode == _InfoMode.expense ? (dateTxt.isEmpty ? null : dateTxt) : null;
+
+                if (_mode == _InfoMode.expense && dateTxt.isNotEmpty && !_isValidProposeDate(dateTxt)) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('目標時期は yyyy/mm 形式で入力してください')),
                   );
@@ -130,7 +169,7 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                     name: nameCtl.text,
                     cost: cost,
                     order: _expenses.length,
-                    targetDate: dateTxt.isEmpty ? null : dateTxt,
+                    targetDate: newTargetDate,
                   ));
                 });
                 Navigator.pop(context);
@@ -143,8 +182,7 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
     );
   }
 
-  void _editExpenseItem(int index) {
-    final item = _expenses[index];
+  void _editExpenseItem(ExpenseItem item) {
     final nameCtl = TextEditingController(text: item.name);
     final costCtl = TextEditingController(text: item.cost.toString());
     final targetDateCtl = TextEditingController(text: item.targetDate ?? '');
@@ -167,11 +205,13 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: '金額 (円)'),
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: targetDateCtl,
-                decoration: const InputDecoration(labelText: '目標時期 (yyyy/mm, 任意)'),
-              ),
+              if (_mode == _InfoMode.expense) ...[
+                const SizedBox(height: 8),
+                TextField(
+                  controller: targetDateCtl,
+                  decoration: const InputDecoration(labelText: '目標時期 (yyyy/mm)'),
+                ),
+              ],
             ],
           ),
           actions: [
@@ -182,20 +222,25 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
             TextButton(
               onPressed: () {
                 final dateTxt = targetDateCtl.text.trim();
-                if (dateTxt.isNotEmpty && !_isValidProposeDate(dateTxt)) {
+                final newTargetDate = _mode == _InfoMode.expense ? (dateTxt.isEmpty ? null : dateTxt) : item.targetDate;
+
+                if (_mode == _InfoMode.expense && dateTxt.isNotEmpty && !_isValidProposeDate(dateTxt)) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('目標時期は yyyy/mm 形式で入力してください')),
                   );
                   return;
                 }
                 final cost = int.tryParse(costCtl.text) ?? 0;
-                setState(() {
-                  _expenses[index] = item.copyWith(
-                    name: nameCtl.text,
-                    cost: cost,
-                    targetDate: dateTxt.isEmpty ? null : dateTxt,
-                  );
-                });
+                final index = _expenses.indexWhere((e) => e.id == item.id);
+                if (index != -1) {
+                  setState(() {
+                    _expenses[index] = item.copyWith(
+                      name: nameCtl.text,
+                      cost: cost,
+                      targetDate: newTargetDate,
+                    );
+                  });
+                }
                 Navigator.pop(context);
               },
               child: const Text('保存'),
@@ -275,14 +320,31 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                 // 必要な貯金目標額
                 _buildField('必要な貯金目標額 (円)', _savingsGoalController),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
+                SegmentedButton<_InfoMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: _InfoMode.expense,
+                      label: Text('出費額計算'),
+                      icon: Icon(Icons.calculate),
+                    ),
+                    ButtonSegment(
+                      value: _InfoMode.timing,
+                      label: Text('時期計算'),
+                      icon: Icon(Icons.calendar_month),
+                    ),
+                  ],
+                  selected: {_mode},
+                  onSelectionChanged: (s) => setState(() => _mode = s.first),
+                ),
+                const SizedBox(height: 16),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      '費用項目（ドラッグで順番変更）',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    Text(
+                      _mode == _InfoMode.expense ? '費用項目（自動並び替え）' : '費用項目（ドラッグで優先度変更）',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     TextButton.icon(
                       onPressed: _addExpenseItem,
@@ -291,58 +353,35 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                     ),
                   ],
                 ),
-                const Text(
-                  '上から順に優先度が高い順（時期計算に使用）',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                Text(
+                  _mode == _InfoMode.expense
+                      ? '目標時期が早い順（ドラッグ不可）'
+                      : '上から順に優先度が高い順（ドラッグで順番変更）',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 const SizedBox(height: 8),
 
-                // ReorderableListView
-                ReorderableListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _expenses.length,
-                  onReorder: _onReorder,
-                  itemBuilder: (context, index) {
-                    final item = _expenses[index];
-                    return Card(
-                      key: ValueKey(item.id),
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      child: ListTile(
-                        leading: ReorderableDragStartListener(
-                          index: index,
-                          child: const Icon(Icons.drag_handle,
-                              color: Colors.grey),
-                        ),
-                        title: Text(item.name),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(currencyFormatter.format(item.cost)),
-                            if (item.targetDate != null)
-                              Text('目標: ${item.targetDate}', style: const TextStyle(fontSize: 12, color: Colors.blue)),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit,
-                                  color: Colors.blueGrey),
-                              onPressed: () => _editExpenseItem(index),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete,
-                                  color: Colors.red),
-                              onPressed: () => setState(
-                                  () => _expenses.removeAt(index)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                if (_mode == _InfoMode.expense)
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _getSortedForExpense().length,
+                    itemBuilder: (context, index) {
+                      final item = _getSortedForExpense()[index];
+                      return _buildExpenseCard(item, currencyFormatter, isDraggable: false);
+                    },
+                  )
+                else
+                  ReorderableListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _expenses.length,
+                    onReorder: _onReorder,
+                    itemBuilder: (context, index) {
+                      final item = _expenses[index];
+                      return _buildExpenseCard(item, currencyFormatter, isDraggable: true, index: index);
+                    },
+                  ),
 
                 const SizedBox(height: 32),
                 ElevatedButton(
@@ -355,6 +394,43 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildExpenseCard(ExpenseItem item, NumberFormat fmt, {required bool isDraggable, int? index}) {
+    return Card(
+      key: ValueKey(item.id),
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: ListTile(
+        leading: isDraggable && index != null
+            ? ReorderableDragStartListener(
+                index: index,
+                child: const Icon(Icons.drag_handle, color: Colors.grey),
+              )
+            : const SizedBox(width: 24, height: 24),
+        title: Text(item.name),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(fmt.format(item.cost)),
+            if (item.targetDate != null && _mode == _InfoMode.timing)
+              Text('目標: ${item.targetDate}', style: const TextStyle(fontSize: 12, color: Colors.blue)),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit, color: Colors.blueGrey),
+              onPressed: () => _editExpenseItem(item),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () => setState(() => _expenses.removeWhere((e) => e.id == item.id)),
+            ),
+          ],
+        ),
       ),
     );
   }

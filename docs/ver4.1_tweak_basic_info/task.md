@@ -1,0 +1,6 @@
+- `[x]` Add `_InfoMode` enum in `basic_info_screen.dart`
+- `[x]` Update `_addExpenseItem` and `_editExpenseItem` to use ID instead of index, and conditionally hide target date input.
+- `[x]` Implement `_getSortedForExpense()` helper method for sorting items by target date.
+- `[x]` Add `SegmentedButton` in `build()` for mode switching.
+- `[x]` Render `ListView.builder` for expense mode and `ReorderableListView.builder` for timing mode.
+- `[x]` Verify changes using `flutter analyze`.
