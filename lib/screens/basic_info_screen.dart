@@ -486,7 +486,30 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => setState(() => _expenses.removeWhere((e) => e.id == item.id)),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: const Text('確認'),
+                      content: const Text('費用項目を削除しますか？'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('キャンセル'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            setState(() => _expenses.removeWhere((e) => e.id == item.id));
+                            Navigator.pop(context);
+                          },
+                          child: const Text('削除', style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
             ),
           ],
         ),
