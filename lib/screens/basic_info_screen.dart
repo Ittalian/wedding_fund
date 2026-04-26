@@ -394,16 +394,28 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                       return null;
                     },
                   ),
-                  CheckboxListTile(
-                    title: const Text('常に目標額を貯金'),
-                    value: _alwaysKeepSavingsGoal,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        _alwaysKeepSavingsGoal = value ?? false;
-                      });
-                    },
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _alwaysKeepSavingsGoal,
+                        onChanged: (bool? value) {
+                          setState(() {
+                            _alwaysKeepSavingsGoal = value ?? false;
+                          });
+                        },
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _alwaysKeepSavingsGoal = !_alwaysKeepSavingsGoal;
+                          });
+                        },
+                        child: const Text('常に目標額を貯金'),
+                      ),
+                    ],
                   ),
 
                 const SizedBox(height: 16),
