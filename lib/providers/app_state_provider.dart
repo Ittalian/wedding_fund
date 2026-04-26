@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../models/assets_data.dart';
 import '../models/basic_info_data.dart';
@@ -55,15 +56,70 @@ class BasicInfoDataNotifier extends _$BasicInfoDataNotifier {
   }
 }
 
-/// proposeDate (yyyy/mm) を DateTime に変換（その月の1日）
-DateTime? _parseProposeDate(String? proposeDate) {
-  if (proposeDate == null || proposeDate.isEmpty) return null;
-  final parts = proposeDate.split('/');
+/// forecastStartDate (yyyy/mm/dd) を DateTime に変換
+DateTime? _parseStartDate(String? dateStr) {
+  if (dateStr == null || dateStr.isEmpty) return null;
+  final parts = dateStr.split('/');
+  if (parts.length != 3) return null;
+  final year = int.tryParse(parts[0]);
+  final month = int.tryParse(parts[1]);
+  final day = int.tryParse(parts[2]);
+  if (year == null || month == null || day == null || month < 1 || month > 12) return null;
+  return DateTime(year, month, day);
+}
+
+/// targetDate (yyyy/mm) を DateTime に変換（目標時期用なのでその月の収入を含めるために月末日）
+DateTime? _parseTargetMonth(String? dateStr) {
+  if (dateStr == null || dateStr.isEmpty) return null;
+  final parts = dateStr.split('/');
   if (parts.length != 2) return null;
   final year = int.tryParse(parts[0]);
   final month = int.tryParse(parts[1]);
   if (year == null || month == null || month < 1 || month > 12) return null;
-  return DateTime(year, month, 1);
+  return DateTime(year, month + 1, 0);
+}
+
+/// 期間内の収入回数を計算するヘルパー。
+/// 現実の「今月」以前の収入はすでに現在の貯金に含まれているとみなし、カウントしない。
+int _calculateIncomeCount(DateTime startDate, DateTime targetDate, int incomeDate, {required bool isBonus, List<int>? bonusMonths}) {
+  final now = DateTime.now();
+  int count = 0;
+  
+  DateTime current = DateTime(startDate.year, startDate.month, 1);
+  final end = DateTime(targetDate.year, targetDate.month, 1);
+
+  while (!current.isAfter(end)) {
+    int year = current.year;
+    int month = current.month;
+    int day = incomeDate;
+    
+    DateTime eventDate = DateTime(year, month, day);
+    if (eventDate.month != month) {
+      eventDate = DateTime(year, month + 1, 0); 
+    }
+
+    if (isBonus && bonusMonths != null && !bonusMonths.contains(month)) {
+      // ボーナス月でないならスキップ
+    } else {
+      if (!eventDate.isBefore(startDate) && !eventDate.isAfter(targetDate)) {
+        bool alreadyInSavings = false;
+        if (year == now.year && month == now.month) {
+          if (now.day >= incomeDate) {
+             alreadyInSavings = true;
+          }
+        } else if (eventDate.isBefore(now)) {
+          alreadyInSavings = true;
+        }
+
+        if (!alreadyInSavings) {
+          count++;
+        }
+      }
+    }
+    current = DateTime(year, month + 1, 1);
+  }
+  
+  return count;
 }
 
 /// 出費額計算：各 ExpenseItem の targetDate に基づき、最大の毎月の固定出費許容額を逆算
@@ -81,10 +137,10 @@ class FinancialCalculation extends _$FinancialCalculation {
     final assets = assetsDataOption;
     final basicInfo = basicInfoDataOption;
 
-    if (basicInfo.proposeDate == null) {
+    if (basicInfo.forecastStartDate == null) {
       return {
         'isDataReady': false,
-        'message': '基本情報からプロポーズ予定年月を入力してください'
+        'message': '基本情報から予測開始日を入力してください'
       };
     }
 
@@ -92,40 +148,66 @@ class FinancialCalculation extends _$FinancialCalculation {
       return {'isDataReady': false, 'message': '財産管理から月の収入を入力してください'};
     }
 
-    final proposeDateParsed = _parseProposeDate(basicInfo.proposeDate);
-    if (proposeDateParsed == null) {
+    final startDateParsed = _parseStartDate(basicInfo.forecastStartDate);
+    if (startDateParsed == null) {
       return {
         'isDataReady': false,
-        'message': 'プロポーズ予定年月の形式が正しくありません (yyyy/mm)'
+        'message': '予測開始日の形式が正しくありません (yyyy/mm/dd)'
       };
     }
 
-    final now = DateTime.now();
+    final simulationStart = startDateParsed;
     
-    // 目標地点と必要累積額のリストを作成
-    // targetDate が未設定の ExpenseItem と savingsGoal は proposeDate を目標時期とする
+    DateTime? maxTargetDate;
     List<Map<String, dynamic>> targets = [];
 
-    // expenses
     for (final item in basicInfo.expenses) {
-      final dateToUse = item.targetDate != null && item.targetDate!.isNotEmpty
-          ? _parseProposeDate(item.targetDate) ?? proposeDateParsed
-          : proposeDateParsed;
+      if (item.targetDate == null || item.targetDate!.isEmpty) {
+        return {
+          'isDataReady': false,
+          'message': '出費額計算を行うには、すべての費用項目に目標時期を設定してください'
+        };
+      }
+      
+      final dateToUse = _parseTargetMonth(item.targetDate);
+      if (dateToUse == null) {
+        return {
+          'isDataReady': false,
+          'message': '${item.name} の目標時期の形式が正しくありません'
+        };
+      }
+      
+      if (dateToUse.isBefore(simulationStart)) {
+        return {
+          'isDataReady': false,
+          'message': '${item.name} の目標時期は予測開始日以降に設定してください'
+        };
+      }
+
       targets.add({'cost': item.cost, 'date': dateToUse});
+      
+      if (maxTargetDate == null || dateToUse.isAfter(maxTargetDate)) {
+        maxTargetDate = dateToUse;
+      }
     }
-    // savingsGoal
+    
     if (basicInfo.savingsGoal > 0) {
-      targets.add({'cost': basicInfo.savingsGoal, 'date': proposeDateParsed});
+      if (maxTargetDate == null) {
+        return {
+          'isDataReady': false,
+          'message': '貯金目標を計算するため、少なくとも1つの費用項目とその目標時期を設定してください'
+        };
+      }
+      targets.add({'cost': basicInfo.savingsGoal, 'date': maxTargetDate});
     }
 
-    // targetDate 順に並び替え
     targets.sort((a, b) {
       final dtA = a['date'] as DateTime;
       final dtB = b['date'] as DateTime;
       return dtA.compareTo(dtB);
     });
 
-    int minAllowedExpense = -1; // -1 indicates not calculated yet
+    int minAllowedExpense = -1;
     int cumulativeCost = 0;
     bool isImpossible = false;
     String deficitMessage = '';
@@ -135,48 +217,38 @@ class FinancialCalculation extends _$FinancialCalculation {
       cumulativeCost += targets[i]['cost'] as int;
       final targetDate = targets[i]['date'] as DateTime;
 
-      // targetDate までに何ヶ月あるか
-      int monthsLeft = (targetDate.year - now.year) * 12 + targetDate.month - now.month;
-      if (monthsLeft < 0) monthsLeft = 0;
+      // 指定日までの収入回数とボーナス回数を計算
+      int incomeCount = _calculateIncomeCount(simulationStart, targetDate, assets.incomeDate, isBonus: false);
+      int bonusCount = _calculateIncomeCount(simulationStart, targetDate, assets.bonusDate, isBonus: true, bonusMonths: assets.bonusMonths);
+      final expectedTotalBonus = bonusCount * assets.bonusAmount;
 
-      // 月数ごとのボーナス回数
-      int futureBonusOccurrences = 0;
-      for (int m = 1; m <= monthsLeft; m++) {
-        final checkMonth = DateTime(now.year, now.month + m, 1);
-        if (assets.bonusMonths.contains(checkMonth.month)) {
-          futureBonusOccurrences++;
-        }
-      }
-
-      final expectedTotalBonus = futureBonusOccurrences * assets.bonusAmount;
-
-      if (monthsLeft == 0) {
-        // 今月または過去の目標 -> 現在の貯金だけで賄える必要がある
-        if (assets.currentSavings < cumulativeCost) {
+      if (incomeCount == 0) {
+        if (assets.currentSavings + expectedTotalBonus < cumulativeCost) {
           isImpossible = true;
-          deficitAmount = cumulativeCost - assets.currentSavings;
-          deficitMessage = '目標達成に必要な貯金が不足しています。\n(不足額: ¥$deficitAmount)';
+          deficitAmount = cumulativeCost - (assets.currentSavings + expectedTotalBonus);
+          final formatter = NumberFormat("#,###");
+          final formattedDeficitAmount = formatter.format(deficitAmount);
+          deficitMessage = '目標達成に必要な貯金が不足しています。\n(不足額: ¥$formattedDeficitAmount)';
           break;
+        } else {
+          final allowedExpense = assets.monthlyIncome;
+          if (minAllowedExpense == -1 || allowedExpense < minAllowedExpense) {
+            minAllowedExpense = allowedExpense;
+          }
         }
       } else {
-        // 月割りでの必要貯金
-        // 必要な追加資金 = 累積コスト - 現在の貯金 - ボーナス
         final requiredAdditionalFunds = cumulativeCost - assets.currentSavings - expectedTotalBonus;
-        
-        int requiredMonthlySaving = 0;
+        int requiredPerIncome = 0;
         if (requiredAdditionalFunds > 0) {
-          requiredMonthlySaving = (requiredAdditionalFunds / monthsLeft).ceil();
+          requiredPerIncome = (requiredAdditionalFunds / incomeCount).ceil();
         }
-        
-        final allowedExpense = assets.monthlyIncome - requiredMonthlySaving;
-        
+        final allowedExpense = assets.monthlyIncome - requiredPerIncome;
         if (minAllowedExpense == -1 || allowedExpense < minAllowedExpense) {
           minAllowedExpense = allowedExpense;
         }
       }
     }
 
-    // 累積コストが0（目標なし）の場合は月収をそのまま許容出費とする
     if (cumulativeCost == 0) {
       minAllowedExpense = assets.monthlyIncome;
     }
@@ -185,23 +257,23 @@ class FinancialCalculation extends _$FinancialCalculation {
     List<Map<String, dynamic>> delaySuggestions = [];
 
     if (isImpossible || minAllowedExpense < 0) {
-      // 内部ヘルパー：特定の BasicInfoData で不足になるかを判定
       bool isPlanDeficit(BasicInfoData testInfo) {
         List<Map<String, dynamic>> testTargets = [];
+        DateTime? testMaxTargetDate;
+        
         for (final item in testInfo.expenses) {
           final dateToUse = item.targetDate != null && item.targetDate!.isNotEmpty
-              ? _parseProposeDate(item.targetDate) ?? proposeDateParsed
-              : proposeDateParsed;
+              ? _parseTargetMonth(item.targetDate) ?? startDateParsed
+              : startDateParsed;
           testTargets.add({'cost': item.cost, 'date': dateToUse});
+          if (testMaxTargetDate == null || dateToUse.isAfter(testMaxTargetDate)) {
+            testMaxTargetDate = dateToUse;
+          }
         }
         if (testInfo.savingsGoal > 0) {
-          testTargets.add({'cost': testInfo.savingsGoal, 'date': proposeDateParsed});
+          testTargets.add({'cost': testInfo.savingsGoal, 'date': testMaxTargetDate ?? startDateParsed});
         }
-        testTargets.sort((a, b) {
-          final dtA = a['date'] as DateTime;
-          final dtB = b['date'] as DateTime;
-          return dtA.compareTo(dtB);
-        });
+        testTargets.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
 
         int tempCum = 0;
         int tempMin = -1;
@@ -209,22 +281,21 @@ class FinancialCalculation extends _$FinancialCalculation {
         for (int i = 0; i < testTargets.length; i++) {
           tempCum += testTargets[i]['cost'] as int;
           final tDate = testTargets[i]['date'] as DateTime;
-          int mLeft = (tDate.year - now.year) * 12 + tDate.month - now.month;
-          if (mLeft < 0) mLeft = 0;
-          int fBonus = 0;
-          for (int m = 1; m <= mLeft; m++) {
-            final cm = DateTime(now.year, now.month + m, 1);
-            if (assets.bonusMonths.contains(cm.month)) fBonus++;
-          }
-          final eBonus = fBonus * assets.bonusAmount;
-          if (mLeft == 0) {
-            if (assets.currentSavings < tempCum) {
+          int iCount = _calculateIncomeCount(simulationStart, tDate, assets.incomeDate, isBonus: false);
+          int bCount = _calculateIncomeCount(simulationStart, tDate, assets.bonusDate, isBonus: true, bonusMonths: assets.bonusMonths);
+          final eBonus = bCount * assets.bonusAmount;
+
+          if (iCount == 0) {
+            if (assets.currentSavings + eBonus < tempCum) {
               tempImp = true;
               break;
+            } else {
+              final allowed = assets.monthlyIncome;
+              if (tempMin == -1 || allowed < tempMin) tempMin = allowed;
             }
           } else {
             final reqAdd = tempCum - assets.currentSavings - eBonus;
-            int reqMo = reqAdd > 0 ? (reqAdd / mLeft).ceil() : 0;
+            int reqMo = reqAdd > 0 ? (reqAdd / iCount).ceil() : 0;
             final allowed = assets.monthlyIncome - reqMo;
             if (tempMin == -1 || allowed < tempMin) tempMin = allowed;
           }
@@ -232,7 +303,6 @@ class FinancialCalculation extends _$FinancialCalculation {
         return tempImp || tempMin < 0;
       }
 
-      // 1. 各項目の減額提案を計算
       for (int i = 0; i < basicInfo.expenses.length; i++) {
         final item = basicInfo.expenses[i];
         if (item.cost <= 0) continue;
@@ -245,7 +315,7 @@ class FinancialCalculation extends _$FinancialCalculation {
           testExpenses[i] = item.copyWith(cost: mid);
           if (!isPlanDeficit(basicInfo.copyWith(expenses: testExpenses))) {
             bestValid = mid;
-            left = mid + 1; // 減額幅をなるべく小さく（costを大きく）したい
+            left = mid + 1;
           } else {
             right = mid - 1;
           }
@@ -272,7 +342,6 @@ class FinancialCalculation extends _$FinancialCalculation {
         }
       }
 
-      // 2. 時期の見直し提案を計算
       Map<DateTime, int> cumulativeByDate = {};
       int totalSoFar = 0;
       for (final t in targets) {
@@ -283,17 +352,16 @@ class FinancialCalculation extends _$FinancialCalculation {
       int netMonthly = assets.monthlyIncome - basicInfo.monthlyExpense;
       if (netMonthly > 0 || assets.bonusAmount > 0) {
         cumulativeByDate.forEach((targetDate, cumulativeNeeded) {
-          DateTime requiredDate = now;
+          DateTime requiredDate = simulationStart;
           bool canAfford = false;
+          
           for (int m = 0; m <= 600; m++) {
-            int bonusCount = 0;
-            for (int i = 1; i <= m; i++) {
-              final checkMonth = DateTime(now.year, now.month + i, 1);
-              if (assets.bonusMonths.contains(checkMonth.month)) bonusCount++;
-            }
-            int projected = assets.currentSavings + netMonthly * m + bonusCount * assets.bonusAmount;
+            final tm = DateTime(simulationStart.year, simulationStart.month + m + 1, 0); // 月末
+            int iC = _calculateIncomeCount(simulationStart, tm, assets.incomeDate, isBonus: false);
+            int bC = _calculateIncomeCount(simulationStart, tm, assets.bonusDate, isBonus: true, bonusMonths: assets.bonusMonths);
+            int projected = assets.currentSavings + (assets.monthlyIncome - basicInfo.monthlyExpense) * iC + bC * assets.bonusAmount;
             if (projected >= cumulativeNeeded) {
-              requiredDate = DateTime(now.year, now.month + m, 1);
+              requiredDate = DateTime(tm.year, tm.month, 1);
               canAfford = true;
               break;
             }
@@ -303,13 +371,10 @@ class FinancialCalculation extends _$FinancialCalculation {
             List<String> itemsHere = [];
             for (final item in basicInfo.expenses) {
               final d = item.targetDate != null && item.targetDate!.isNotEmpty
-                  ? _parseProposeDate(item.targetDate) ?? proposeDateParsed
-                  : proposeDateParsed;
+                  ? _parseTargetMonth(item.targetDate) ?? startDateParsed
+                  : startDateParsed;
               if (d == targetDate) itemsHere.add(item.name);
             }
-            // if (targetDate == proposeDateParsed && basicInfo.savingsGoal > 0) {
-            //   itemsHere.add('目標貯金');
-            // }
             delaySuggestions.add({
               'items': itemsHere,
               'requiredDate': requiredDate,
@@ -360,53 +425,47 @@ class ItemAffordabilityCalculation extends _$ItemAffordabilityCalculation {
     final sortedItems = [...basicInfo.expenses]
       ..sort((a, b) => a.order.compareTo(b.order));
 
-    final now = DateTime.now();
-    final netMonthly = assets.monthlyIncome - basicInfo.monthlyExpense;
-
     int cumulativeCost = 0;
-    const maxMonths = 600;
     final results = <Map<String, dynamic>>[];
 
-    final proposeDateParsed = _parseProposeDate(basicInfo.proposeDate);
+    final startDateParsed = _parseStartDate(basicInfo.forecastStartDate) ?? DateTime.now();
+    final simulationStart = startDateParsed;
 
     for (final item in sortedItems) {
       cumulativeCost += item.cost;
 
       String? affordableDateStr;
-      DateTime? affordableMonth;
+      DateTime? affordableDate;
+      int? remainingBalance;
 
-      for (int m = 0; m <= maxMonths; m++) {
-        // m ヶ月後までのボーナス回数を計算
-        int bonusCount = 0;
-        for (int i = 1; i <= m; i++) {
-          final checkMonth = DateTime(now.year, now.month + i, 1);
-          if (assets.bonusMonths.contains(checkMonth.month)) {
-            bonusCount++;
-          }
-        }
+      for (int m = 0; m <= 600; m++) {
+        final targetMonth = DateTime(simulationStart.year, simulationStart.month + m + 1, 0); // 月末
+        
+        int incomeCount = _calculateIncomeCount(simulationStart, targetMonth, assets.incomeDate, isBonus: false);
+        int bonusCount = _calculateIncomeCount(simulationStart, targetMonth, assets.bonusDate, isBonus: true, bonusMonths: assets.bonusMonths);
 
-        final projected = assets.currentSavings +
-            netMonthly * m +
-            bonusCount * assets.bonusAmount;
+        int projected = assets.currentSavings +
+            ((assets.monthlyIncome - basicInfo.monthlyExpense) * incomeCount) +
+            (assets.bonusAmount * bonusCount);
 
         if (projected >= cumulativeCost) {
-          // 収入が入った当月（mヶ月後）に賄える判定とする
-          affordableMonth = DateTime(now.year, now.month + m, 1);
+          affordableDate = DateTime(targetMonth.year, targetMonth.month, 1);
+          remainingBalance = projected - cumulativeCost;
           break;
         }
       }
 
-      if (affordableMonth != null) {
-        // プロポーズ予定月より前ならプロポーズ予定月に合わせる
-        if (proposeDateParsed != null && affordableMonth.isBefore(proposeDateParsed)) {
-          affordableMonth = proposeDateParsed;
+      if (affordableDate != null) {
+        if (affordableDate.isBefore(DateTime(simulationStart.year, simulationStart.month, 1))) {
+          affordableDate = DateTime(simulationStart.year, simulationStart.month, 1);
         }
-        affordableDateStr = '${affordableMonth.year}/${affordableMonth.month.toString().padLeft(2, '0')}';
+        affordableDateStr = '${affordableDate.year}/${affordableDate.month.toString().padLeft(2, '0')}';
       }
 
       results.add({
         'item': item,
         'affordableDate': affordableDateStr,
+        'remainingBalance': remainingBalance,
       });
     }
 

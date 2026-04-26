@@ -79,7 +79,7 @@ final class BasicInfoDataNotifierProvider
 }
 
 String _$basicInfoDataNotifierHash() =>
-    r'a8508a15a63b62fe60749b48f66d9f350d40d20c';
+    r'a46ee8659fb6b186b4751dd3c29129944f9c9791';
 
 abstract class _$BasicInfoDataNotifier extends $StreamNotifier<BasicInfoData> {
   Stream<BasicInfoData> build();
@@ -99,15 +99,15 @@ abstract class _$BasicInfoDataNotifier extends $StreamNotifier<BasicInfoData> {
   }
 }
 
-/// 出費額計算：proposeDate までの毎月許容出費額を計算
+/// 出費額計算：各 ExpenseItem の targetDate に基づき、最大の毎月の固定出費許容額を逆算
 
 @ProviderFor(FinancialCalculation)
 final financialCalculationProvider = FinancialCalculationProvider._();
 
-/// 出費額計算：proposeDate までの毎月許容出費額を計算
+/// 出費額計算：各 ExpenseItem の targetDate に基づき、最大の毎月の固定出費許容額を逆算
 final class FinancialCalculationProvider
     extends $NotifierProvider<FinancialCalculation, Map<String, dynamic>> {
-  /// 出費額計算：proposeDate までの毎月許容出費額を計算
+  /// 出費額計算：各 ExpenseItem の targetDate に基づき、最大の毎月の固定出費許容額を逆算
   FinancialCalculationProvider._()
     : super(
         from: null,
@@ -136,9 +136,9 @@ final class FinancialCalculationProvider
 }
 
 String _$financialCalculationHash() =>
-    r'144437dd7622c64b9616bdddd9f5a0d48759bc28';
+    r'7fb76cc43c39e27c7c949e944eff049d071bd674';
 
-/// 出費額計算：proposeDate までの毎月許容出費額を計算
+/// 出費額計算：各 ExpenseItem の targetDate に基づき、最大の毎月の固定出費許容額を逆算
 
 abstract class _$FinancialCalculation extends $Notifier<Map<String, dynamic>> {
   Map<String, dynamic> build();
@@ -159,20 +159,12 @@ abstract class _$FinancialCalculation extends $Notifier<Map<String, dynamic>> {
 }
 
 /// 時期計算：各 ExpenseItem を賄える時期を計算（order 順、累積）
-///
-/// 戻り値: List<Map> = [
-///   {'item': ExpenseItem, 'affordableDate': 'yyyy/mm' or null},
-/// ]
 
 @ProviderFor(ItemAffordabilityCalculation)
 final itemAffordabilityCalculationProvider =
     ItemAffordabilityCalculationProvider._();
 
 /// 時期計算：各 ExpenseItem を賄える時期を計算（order 順、累積）
-///
-/// 戻り値: List<Map> = [
-///   {'item': ExpenseItem, 'affordableDate': 'yyyy/mm' or null},
-/// ]
 final class ItemAffordabilityCalculationProvider
     extends
         $NotifierProvider<
@@ -180,10 +172,6 @@ final class ItemAffordabilityCalculationProvider
           List<Map<String, dynamic>>
         > {
   /// 時期計算：各 ExpenseItem を賄える時期を計算（order 順、累積）
-  ///
-  /// 戻り値: List<Map> = [
-  ///   {'item': ExpenseItem, 'affordableDate': 'yyyy/mm' or null},
-  /// ]
   ItemAffordabilityCalculationProvider._()
     : super(
         from: null,
@@ -212,13 +200,9 @@ final class ItemAffordabilityCalculationProvider
 }
 
 String _$itemAffordabilityCalculationHash() =>
-    r'9051beb410d538a626d5ca43cb7053bee2532f38';
+    r'e2a7026324d9fff48e1bf1ab6d824f71b8e5aab8';
 
 /// 時期計算：各 ExpenseItem を賄える時期を計算（order 順、累積）
-///
-/// 戻り値: List<Map> = [
-///   {'item': ExpenseItem, 'affordableDate': 'yyyy/mm' or null},
-/// ]
 
 abstract class _$ItemAffordabilityCalculation
     extends $Notifier<List<Map<String, dynamic>>> {

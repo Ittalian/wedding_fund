@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$BasicInfoData {
 
- String? get proposeDate;// yyyy/mm 形式
+ String? get forecastStartDate;// yyyy/mm/dd 形式
  int get monthlyExpense;// 月の固定出費
  List<ExpenseItem> get expenses; int get savingsGoal;
 /// Create a copy of BasicInfoData
@@ -30,16 +30,16 @@ $BasicInfoDataCopyWith<BasicInfoData> get copyWith => _$BasicInfoDataCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BasicInfoData&&(identical(other.proposeDate, proposeDate) || other.proposeDate == proposeDate)&&(identical(other.monthlyExpense, monthlyExpense) || other.monthlyExpense == monthlyExpense)&&const DeepCollectionEquality().equals(other.expenses, expenses)&&(identical(other.savingsGoal, savingsGoal) || other.savingsGoal == savingsGoal));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BasicInfoData&&(identical(other.forecastStartDate, forecastStartDate) || other.forecastStartDate == forecastStartDate)&&(identical(other.monthlyExpense, monthlyExpense) || other.monthlyExpense == monthlyExpense)&&const DeepCollectionEquality().equals(other.expenses, expenses)&&(identical(other.savingsGoal, savingsGoal) || other.savingsGoal == savingsGoal));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,proposeDate,monthlyExpense,const DeepCollectionEquality().hash(expenses),savingsGoal);
+int get hashCode => Object.hash(runtimeType,forecastStartDate,monthlyExpense,const DeepCollectionEquality().hash(expenses),savingsGoal);
 
 @override
 String toString() {
-  return 'BasicInfoData(proposeDate: $proposeDate, monthlyExpense: $monthlyExpense, expenses: $expenses, savingsGoal: $savingsGoal)';
+  return 'BasicInfoData(forecastStartDate: $forecastStartDate, monthlyExpense: $monthlyExpense, expenses: $expenses, savingsGoal: $savingsGoal)';
 }
 
 
@@ -50,7 +50,7 @@ abstract mixin class $BasicInfoDataCopyWith<$Res>  {
   factory $BasicInfoDataCopyWith(BasicInfoData value, $Res Function(BasicInfoData) _then) = _$BasicInfoDataCopyWithImpl;
 @useResult
 $Res call({
- String? proposeDate, int monthlyExpense, List<ExpenseItem> expenses, int savingsGoal
+ String? forecastStartDate, int monthlyExpense, List<ExpenseItem> expenses, int savingsGoal
 });
 
 
@@ -67,9 +67,9 @@ class _$BasicInfoDataCopyWithImpl<$Res>
 
 /// Create a copy of BasicInfoData
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? proposeDate = freezed,Object? monthlyExpense = null,Object? expenses = null,Object? savingsGoal = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? forecastStartDate = freezed,Object? monthlyExpense = null,Object? expenses = null,Object? savingsGoal = null,}) {
   return _then(_self.copyWith(
-proposeDate: freezed == proposeDate ? _self.proposeDate : proposeDate // ignore: cast_nullable_to_non_nullable
+forecastStartDate: freezed == forecastStartDate ? _self.forecastStartDate : forecastStartDate // ignore: cast_nullable_to_non_nullable
 as String?,monthlyExpense: null == monthlyExpense ? _self.monthlyExpense : monthlyExpense // ignore: cast_nullable_to_non_nullable
 as int,expenses: null == expenses ? _self.expenses : expenses // ignore: cast_nullable_to_non_nullable
 as List<ExpenseItem>,savingsGoal: null == savingsGoal ? _self.savingsGoal : savingsGoal // ignore: cast_nullable_to_non_nullable
@@ -158,10 +158,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? proposeDate,  int monthlyExpense,  List<ExpenseItem> expenses,  int savingsGoal)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? forecastStartDate,  int monthlyExpense,  List<ExpenseItem> expenses,  int savingsGoal)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _BasicInfoData() when $default != null:
-return $default(_that.proposeDate,_that.monthlyExpense,_that.expenses,_that.savingsGoal);case _:
+return $default(_that.forecastStartDate,_that.monthlyExpense,_that.expenses,_that.savingsGoal);case _:
   return orElse();
 
 }
@@ -179,10 +179,10 @@ return $default(_that.proposeDate,_that.monthlyExpense,_that.expenses,_that.savi
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? proposeDate,  int monthlyExpense,  List<ExpenseItem> expenses,  int savingsGoal)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? forecastStartDate,  int monthlyExpense,  List<ExpenseItem> expenses,  int savingsGoal)  $default,) {final _that = this;
 switch (_that) {
 case _BasicInfoData():
-return $default(_that.proposeDate,_that.monthlyExpense,_that.expenses,_that.savingsGoal);case _:
+return $default(_that.forecastStartDate,_that.monthlyExpense,_that.expenses,_that.savingsGoal);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -199,10 +199,10 @@ return $default(_that.proposeDate,_that.monthlyExpense,_that.expenses,_that.savi
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? proposeDate,  int monthlyExpense,  List<ExpenseItem> expenses,  int savingsGoal)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? forecastStartDate,  int monthlyExpense,  List<ExpenseItem> expenses,  int savingsGoal)?  $default,) {final _that = this;
 switch (_that) {
 case _BasicInfoData() when $default != null:
-return $default(_that.proposeDate,_that.monthlyExpense,_that.expenses,_that.savingsGoal);case _:
+return $default(_that.forecastStartDate,_that.monthlyExpense,_that.expenses,_that.savingsGoal);case _:
   return null;
 
 }
@@ -214,11 +214,11 @@ return $default(_that.proposeDate,_that.monthlyExpense,_that.expenses,_that.savi
 @JsonSerializable()
 
 class _BasicInfoData extends BasicInfoData {
-  const _BasicInfoData({this.proposeDate, this.monthlyExpense = 0, final  List<ExpenseItem> expenses = const [], this.savingsGoal = 0}): _expenses = expenses,super._();
+  const _BasicInfoData({this.forecastStartDate, this.monthlyExpense = 0, final  List<ExpenseItem> expenses = const [], this.savingsGoal = 0}): _expenses = expenses,super._();
   factory _BasicInfoData.fromJson(Map<String, dynamic> json) => _$BasicInfoDataFromJson(json);
 
-@override final  String? proposeDate;
-// yyyy/mm 形式
+@override final  String? forecastStartDate;
+// yyyy/mm/dd 形式
 @override@JsonKey() final  int monthlyExpense;
 // 月の固定出費
  final  List<ExpenseItem> _expenses;
@@ -244,16 +244,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BasicInfoData&&(identical(other.proposeDate, proposeDate) || other.proposeDate == proposeDate)&&(identical(other.monthlyExpense, monthlyExpense) || other.monthlyExpense == monthlyExpense)&&const DeepCollectionEquality().equals(other._expenses, _expenses)&&(identical(other.savingsGoal, savingsGoal) || other.savingsGoal == savingsGoal));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BasicInfoData&&(identical(other.forecastStartDate, forecastStartDate) || other.forecastStartDate == forecastStartDate)&&(identical(other.monthlyExpense, monthlyExpense) || other.monthlyExpense == monthlyExpense)&&const DeepCollectionEquality().equals(other._expenses, _expenses)&&(identical(other.savingsGoal, savingsGoal) || other.savingsGoal == savingsGoal));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,proposeDate,monthlyExpense,const DeepCollectionEquality().hash(_expenses),savingsGoal);
+int get hashCode => Object.hash(runtimeType,forecastStartDate,monthlyExpense,const DeepCollectionEquality().hash(_expenses),savingsGoal);
 
 @override
 String toString() {
-  return 'BasicInfoData(proposeDate: $proposeDate, monthlyExpense: $monthlyExpense, expenses: $expenses, savingsGoal: $savingsGoal)';
+  return 'BasicInfoData(forecastStartDate: $forecastStartDate, monthlyExpense: $monthlyExpense, expenses: $expenses, savingsGoal: $savingsGoal)';
 }
 
 
@@ -264,7 +264,7 @@ abstract mixin class _$BasicInfoDataCopyWith<$Res> implements $BasicInfoDataCopy
   factory _$BasicInfoDataCopyWith(_BasicInfoData value, $Res Function(_BasicInfoData) _then) = __$BasicInfoDataCopyWithImpl;
 @override @useResult
 $Res call({
- String? proposeDate, int monthlyExpense, List<ExpenseItem> expenses, int savingsGoal
+ String? forecastStartDate, int monthlyExpense, List<ExpenseItem> expenses, int savingsGoal
 });
 
 
@@ -281,9 +281,9 @@ class __$BasicInfoDataCopyWithImpl<$Res>
 
 /// Create a copy of BasicInfoData
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? proposeDate = freezed,Object? monthlyExpense = null,Object? expenses = null,Object? savingsGoal = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? forecastStartDate = freezed,Object? monthlyExpense = null,Object? expenses = null,Object? savingsGoal = null,}) {
   return _then(_BasicInfoData(
-proposeDate: freezed == proposeDate ? _self.proposeDate : proposeDate // ignore: cast_nullable_to_non_nullable
+forecastStartDate: freezed == forecastStartDate ? _self.forecastStartDate : forecastStartDate // ignore: cast_nullable_to_non_nullable
 as String?,monthlyExpense: null == monthlyExpense ? _self.monthlyExpense : monthlyExpense // ignore: cast_nullable_to_non_nullable
 as int,expenses: null == expenses ? _self._expenses : expenses // ignore: cast_nullable_to_non_nullable
 as List<ExpenseItem>,savingsGoal: null == savingsGoal ? _self.savingsGoal : savingsGoal // ignore: cast_nullable_to_non_nullable

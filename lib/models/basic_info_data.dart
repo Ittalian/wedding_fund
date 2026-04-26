@@ -9,7 +9,7 @@ abstract class BasicInfoData with _$BasicInfoData {
   const BasicInfoData._();
 
   const factory BasicInfoData({
-    String? proposeDate, // yyyy/mm 形式
+    String? forecastStartDate, // yyyy/mm/dd 形式
     @Default(0) int monthlyExpense, // 月の固定出費
     @Default([]) List<ExpenseItem> expenses,
     @Default(0) int savingsGoal,

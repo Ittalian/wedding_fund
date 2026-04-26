@@ -337,6 +337,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             color: Colors.indigo,
                           ),
                         ),
+                        if (result['remainingBalance'] != null)
+                          Text(
+                            '残高: ${fmt.format(result['remainingBalance'])}',
+                            style: const TextStyle(
+                                fontSize: 11, color: Colors.teal),
+                          ),
                       ],
                     )
                   : const Text(

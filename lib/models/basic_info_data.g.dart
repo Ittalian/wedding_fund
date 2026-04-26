@@ -8,7 +8,7 @@ part of 'basic_info_data.dart';
 
 _BasicInfoData _$BasicInfoDataFromJson(Map<String, dynamic> json) =>
     _BasicInfoData(
-      proposeDate: json['proposeDate'] as String?,
+      forecastStartDate: json['forecastStartDate'] as String?,
       monthlyExpense: (json['monthlyExpense'] as num?)?.toInt() ?? 0,
       expenses:
           (json['expenses'] as List<dynamic>?)
@@ -20,7 +20,7 @@ _BasicInfoData _$BasicInfoDataFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$BasicInfoDataToJson(_BasicInfoData instance) =>
     <String, dynamic>{
-      'proposeDate': instance.proposeDate,
+      'forecastStartDate': instance.forecastStartDate,
       'monthlyExpense': instance.monthlyExpense,
       'expenses': instance.expenses.map((e) => e.toJson()).toList(),
       'savingsGoal': instance.savingsGoal,

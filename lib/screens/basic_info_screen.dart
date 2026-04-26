@@ -16,7 +16,7 @@ enum _InfoMode { expense, timing }
 
 class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _proposeDateController;
+  late TextEditingController _forecastStartDateController;
   late TextEditingController _monthlyExpenseController;
   late TextEditingController _savingsGoalController;
   List<ExpenseItem> _expenses = [];
@@ -36,14 +36,14 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
   @override
   void initState() {
     super.initState();
-    _proposeDateController = TextEditingController();
+    _forecastStartDateController = TextEditingController();
     _monthlyExpenseController = TextEditingController();
     _savingsGoalController = TextEditingController();
   }
 
   @override
   void dispose() {
-    _proposeDateController.dispose();
+    _forecastStartDateController.dispose();
     _monthlyExpenseController.dispose();
     _savingsGoalController.dispose();
     super.dispose();
@@ -51,7 +51,7 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
 
   void _loadData(BasicInfoData data) {
     if (!_isInitialized) {
-      _proposeDateController.text = data.proposeDate ?? '';
+      _forecastStartDateController.text = data.forecastStartDate ?? '';
       _monthlyExpenseController.text = data.monthlyExpense.toString();
       _savingsGoalController.text = data.savingsGoal.toString();
 
@@ -74,7 +74,21 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
     }
   }
 
-  bool _isValidProposeDate(String value) {
+  bool _isValidStartDate(String value) {
+    if (value.isEmpty) return true;
+    final regex = RegExp(r'^\d{4}/\d{2}/\d{2}$');
+    if (!regex.hasMatch(value)) return false;
+    final parts = value.split('/');
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final day = int.tryParse(parts[2]);
+    if (year == null || month == null || day == null) return false;
+    if (month < 1 || month > 12) return false;
+    final date = DateTime(year, month, day);
+    return date.year == year && date.month == month && date.day == day;
+  }
+
+  bool _isValidTargetMonth(String value) {
     if (value.isEmpty) return true;
     final regex = RegExp(r'^\d{4}/\d{2}$');
     if (!regex.hasMatch(value)) return false;
@@ -83,7 +97,7 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
     return month != null && month >= 1 && month <= 12;
   }
 
-  DateTime? _parseProposeDate(String? date) {
+  DateTime? _parseStartDate(String? date) {
     if (date == null || date.isEmpty) return null;
     final parts = date.split('/');
     if (parts.length != 2) return null;
@@ -95,13 +109,13 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
 
   List<ExpenseItem> _getSortedForExpense() {
     final list = List<ExpenseItem>.from(_expenses);
-    final defaultDate = _parseProposeDate(_proposeDateController.text);
+    final defaultDate = _parseStartDate(_forecastStartDateController.text);
     list.sort((a, b) {
       final dtA = (a.targetDate != null && a.targetDate!.isNotEmpty)
-          ? (_parseProposeDate(a.targetDate) ?? defaultDate)
+          ? (_parseStartDate(a.targetDate) ?? defaultDate)
           : defaultDate;
       final dtB = (b.targetDate != null && b.targetDate!.isNotEmpty)
-          ? (_parseProposeDate(b.targetDate) ?? defaultDate)
+          ? (_parseStartDate(b.targetDate) ?? defaultDate)
           : defaultDate;
 
       if (dtA == null && dtB == null) return a.order.compareTo(b.order);
@@ -159,7 +173,7 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                     controller: targetDateCtl,
                     decoration: const InputDecoration(labelText: '目標時期 (yyyy/mm)'),
                     validator: (value) {
-                      if (value != null && value.isNotEmpty && !_isValidProposeDate(value)) {
+                      if (value != null && value.isNotEmpty && !_isValidTargetMonth(value)) {
                         return 'yyyy/mm形式で入力してください';
                       }
                       return null;
@@ -245,7 +259,7 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                     controller: targetDateCtl,
                     decoration: const InputDecoration(labelText: '目標時期 (yyyy/mm)'),
                     validator: (value) {
-                      if (value != null && value.isNotEmpty && !_isValidProposeDate(value)) {
+                      if (value != null && value.isNotEmpty && !_isValidTargetMonth(value)) {
                         return 'yyyy/mm形式で入力してください';
                       }
                       return null;
@@ -304,9 +318,9 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
-    final proposeDate = _proposeDateController.text.trim();
+    final startDate = _forecastStartDateController.text.trim();
     final data = BasicInfoData(
-      proposeDate: proposeDate.isEmpty ? null : proposeDate,
+      forecastStartDate: startDate.isEmpty ? null : startDate,
       monthlyExpense: int.tryParse(_monthlyExpenseController.text) ?? 0,
       savingsGoal: int.tryParse(_savingsGoalController.text) ?? 0,
       expenses: _expenses,
@@ -342,15 +356,15 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // プロポーズ予定年月
+                  // 予測開始日
                   _buildField(
-                    'プロポーズ予定年月 (yyyy/mm)',
-                    _proposeDateController,
+                    '予測開始日 (yyyy/mm/dd)',
+                    _forecastStartDateController,
                     keyboardType: TextInputType.text,
-                    hint: '例: 2027/06',
+                    hint: '例: 2027/06/01',
                     validator: (value) {
-                      if (value != null && value.isNotEmpty && !_isValidProposeDate(value)) {
-                        return 'yyyy/mm形式で入力してください';
+                      if (value != null && value.isNotEmpty && !_isValidStartDate(value)) {
+                        return 'yyyy/mm/dd形式で入力してください';
                       }
                       return null;
                     },

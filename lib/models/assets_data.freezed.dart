@@ -15,7 +15,9 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AssetsData {
 
- int get currentSavings; int get monthlyIncome; int get bonusAmount; List<int> get bonusMonths;
+ int get currentSavings; int get monthlyIncome; int get incomeDate;// 平均収入が入る日 (1~31)
+ int get bonusAmount; List<int> get bonusMonths;// ボーナスの支給月 (例: [6, 12])
+ int get bonusDate;
 /// Create a copy of AssetsData
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +30,16 @@ $AssetsDataCopyWith<AssetsData> get copyWith => _$AssetsDataCopyWithImpl<AssetsD
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AssetsData&&(identical(other.currentSavings, currentSavings) || other.currentSavings == currentSavings)&&(identical(other.monthlyIncome, monthlyIncome) || other.monthlyIncome == monthlyIncome)&&(identical(other.bonusAmount, bonusAmount) || other.bonusAmount == bonusAmount)&&const DeepCollectionEquality().equals(other.bonusMonths, bonusMonths));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AssetsData&&(identical(other.currentSavings, currentSavings) || other.currentSavings == currentSavings)&&(identical(other.monthlyIncome, monthlyIncome) || other.monthlyIncome == monthlyIncome)&&(identical(other.incomeDate, incomeDate) || other.incomeDate == incomeDate)&&(identical(other.bonusAmount, bonusAmount) || other.bonusAmount == bonusAmount)&&const DeepCollectionEquality().equals(other.bonusMonths, bonusMonths)&&(identical(other.bonusDate, bonusDate) || other.bonusDate == bonusDate));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,currentSavings,monthlyIncome,bonusAmount,const DeepCollectionEquality().hash(bonusMonths));
+int get hashCode => Object.hash(runtimeType,currentSavings,monthlyIncome,incomeDate,bonusAmount,const DeepCollectionEquality().hash(bonusMonths),bonusDate);
 
 @override
 String toString() {
-  return 'AssetsData(currentSavings: $currentSavings, monthlyIncome: $monthlyIncome, bonusAmount: $bonusAmount, bonusMonths: $bonusMonths)';
+  return 'AssetsData(currentSavings: $currentSavings, monthlyIncome: $monthlyIncome, incomeDate: $incomeDate, bonusAmount: $bonusAmount, bonusMonths: $bonusMonths, bonusDate: $bonusDate)';
 }
 
 
@@ -48,7 +50,7 @@ abstract mixin class $AssetsDataCopyWith<$Res>  {
   factory $AssetsDataCopyWith(AssetsData value, $Res Function(AssetsData) _then) = _$AssetsDataCopyWithImpl;
 @useResult
 $Res call({
- int currentSavings, int monthlyIncome, int bonusAmount, List<int> bonusMonths
+ int currentSavings, int monthlyIncome, int incomeDate, int bonusAmount, List<int> bonusMonths, int bonusDate
 });
 
 
@@ -65,13 +67,15 @@ class _$AssetsDataCopyWithImpl<$Res>
 
 /// Create a copy of AssetsData
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? currentSavings = null,Object? monthlyIncome = null,Object? bonusAmount = null,Object? bonusMonths = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? currentSavings = null,Object? monthlyIncome = null,Object? incomeDate = null,Object? bonusAmount = null,Object? bonusMonths = null,Object? bonusDate = null,}) {
   return _then(_self.copyWith(
 currentSavings: null == currentSavings ? _self.currentSavings : currentSavings // ignore: cast_nullable_to_non_nullable
 as int,monthlyIncome: null == monthlyIncome ? _self.monthlyIncome : monthlyIncome // ignore: cast_nullable_to_non_nullable
+as int,incomeDate: null == incomeDate ? _self.incomeDate : incomeDate // ignore: cast_nullable_to_non_nullable
 as int,bonusAmount: null == bonusAmount ? _self.bonusAmount : bonusAmount // ignore: cast_nullable_to_non_nullable
 as int,bonusMonths: null == bonusMonths ? _self.bonusMonths : bonusMonths // ignore: cast_nullable_to_non_nullable
-as List<int>,
+as List<int>,bonusDate: null == bonusDate ? _self.bonusDate : bonusDate // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 
@@ -156,10 +160,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int currentSavings,  int monthlyIncome,  int bonusAmount,  List<int> bonusMonths)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int currentSavings,  int monthlyIncome,  int incomeDate,  int bonusAmount,  List<int> bonusMonths,  int bonusDate)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AssetsData() when $default != null:
-return $default(_that.currentSavings,_that.monthlyIncome,_that.bonusAmount,_that.bonusMonths);case _:
+return $default(_that.currentSavings,_that.monthlyIncome,_that.incomeDate,_that.bonusAmount,_that.bonusMonths,_that.bonusDate);case _:
   return orElse();
 
 }
@@ -177,10 +181,10 @@ return $default(_that.currentSavings,_that.monthlyIncome,_that.bonusAmount,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int currentSavings,  int monthlyIncome,  int bonusAmount,  List<int> bonusMonths)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int currentSavings,  int monthlyIncome,  int incomeDate,  int bonusAmount,  List<int> bonusMonths,  int bonusDate)  $default,) {final _that = this;
 switch (_that) {
 case _AssetsData():
-return $default(_that.currentSavings,_that.monthlyIncome,_that.bonusAmount,_that.bonusMonths);case _:
+return $default(_that.currentSavings,_that.monthlyIncome,_that.incomeDate,_that.bonusAmount,_that.bonusMonths,_that.bonusDate);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -197,10 +201,10 @@ return $default(_that.currentSavings,_that.monthlyIncome,_that.bonusAmount,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int currentSavings,  int monthlyIncome,  int bonusAmount,  List<int> bonusMonths)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int currentSavings,  int monthlyIncome,  int incomeDate,  int bonusAmount,  List<int> bonusMonths,  int bonusDate)?  $default,) {final _that = this;
 switch (_that) {
 case _AssetsData() when $default != null:
-return $default(_that.currentSavings,_that.monthlyIncome,_that.bonusAmount,_that.bonusMonths);case _:
+return $default(_that.currentSavings,_that.monthlyIncome,_that.incomeDate,_that.bonusAmount,_that.bonusMonths,_that.bonusDate);case _:
   return null;
 
 }
@@ -212,11 +216,13 @@ return $default(_that.currentSavings,_that.monthlyIncome,_that.bonusAmount,_that
 @JsonSerializable()
 
 class _AssetsData implements AssetsData {
-  const _AssetsData({this.currentSavings = 0, this.monthlyIncome = 0, this.bonusAmount = 0, final  List<int> bonusMonths = const []}): _bonusMonths = bonusMonths;
+  const _AssetsData({this.currentSavings = 0, this.monthlyIncome = 0, this.incomeDate = 25, this.bonusAmount = 0, final  List<int> bonusMonths = const [], this.bonusDate = 10}): _bonusMonths = bonusMonths;
   factory _AssetsData.fromJson(Map<String, dynamic> json) => _$AssetsDataFromJson(json);
 
 @override@JsonKey() final  int currentSavings;
 @override@JsonKey() final  int monthlyIncome;
+@override@JsonKey() final  int incomeDate;
+// 平均収入が入る日 (1~31)
 @override@JsonKey() final  int bonusAmount;
  final  List<int> _bonusMonths;
 @override@JsonKey() List<int> get bonusMonths {
@@ -225,6 +231,8 @@ class _AssetsData implements AssetsData {
   return EqualUnmodifiableListView(_bonusMonths);
 }
 
+// ボーナスの支給月 (例: [6, 12])
+@override@JsonKey() final  int bonusDate;
 
 /// Create a copy of AssetsData
 /// with the given fields replaced by the non-null parameter values.
@@ -239,16 +247,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AssetsData&&(identical(other.currentSavings, currentSavings) || other.currentSavings == currentSavings)&&(identical(other.monthlyIncome, monthlyIncome) || other.monthlyIncome == monthlyIncome)&&(identical(other.bonusAmount, bonusAmount) || other.bonusAmount == bonusAmount)&&const DeepCollectionEquality().equals(other._bonusMonths, _bonusMonths));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AssetsData&&(identical(other.currentSavings, currentSavings) || other.currentSavings == currentSavings)&&(identical(other.monthlyIncome, monthlyIncome) || other.monthlyIncome == monthlyIncome)&&(identical(other.incomeDate, incomeDate) || other.incomeDate == incomeDate)&&(identical(other.bonusAmount, bonusAmount) || other.bonusAmount == bonusAmount)&&const DeepCollectionEquality().equals(other._bonusMonths, _bonusMonths)&&(identical(other.bonusDate, bonusDate) || other.bonusDate == bonusDate));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,currentSavings,monthlyIncome,bonusAmount,const DeepCollectionEquality().hash(_bonusMonths));
+int get hashCode => Object.hash(runtimeType,currentSavings,monthlyIncome,incomeDate,bonusAmount,const DeepCollectionEquality().hash(_bonusMonths),bonusDate);
 
 @override
 String toString() {
-  return 'AssetsData(currentSavings: $currentSavings, monthlyIncome: $monthlyIncome, bonusAmount: $bonusAmount, bonusMonths: $bonusMonths)';
+  return 'AssetsData(currentSavings: $currentSavings, monthlyIncome: $monthlyIncome, incomeDate: $incomeDate, bonusAmount: $bonusAmount, bonusMonths: $bonusMonths, bonusDate: $bonusDate)';
 }
 
 
@@ -259,7 +267,7 @@ abstract mixin class _$AssetsDataCopyWith<$Res> implements $AssetsDataCopyWith<$
   factory _$AssetsDataCopyWith(_AssetsData value, $Res Function(_AssetsData) _then) = __$AssetsDataCopyWithImpl;
 @override @useResult
 $Res call({
- int currentSavings, int monthlyIncome, int bonusAmount, List<int> bonusMonths
+ int currentSavings, int monthlyIncome, int incomeDate, int bonusAmount, List<int> bonusMonths, int bonusDate
 });
 
 
@@ -276,13 +284,15 @@ class __$AssetsDataCopyWithImpl<$Res>
 
 /// Create a copy of AssetsData
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? currentSavings = null,Object? monthlyIncome = null,Object? bonusAmount = null,Object? bonusMonths = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? currentSavings = null,Object? monthlyIncome = null,Object? incomeDate = null,Object? bonusAmount = null,Object? bonusMonths = null,Object? bonusDate = null,}) {
   return _then(_AssetsData(
 currentSavings: null == currentSavings ? _self.currentSavings : currentSavings // ignore: cast_nullable_to_non_nullable
 as int,monthlyIncome: null == monthlyIncome ? _self.monthlyIncome : monthlyIncome // ignore: cast_nullable_to_non_nullable
+as int,incomeDate: null == incomeDate ? _self.incomeDate : incomeDate // ignore: cast_nullable_to_non_nullable
 as int,bonusAmount: null == bonusAmount ? _self.bonusAmount : bonusAmount // ignore: cast_nullable_to_non_nullable
 as int,bonusMonths: null == bonusMonths ? _self._bonusMonths : bonusMonths // ignore: cast_nullable_to_non_nullable
-as List<int>,
+as List<int>,bonusDate: null == bonusDate ? _self.bonusDate : bonusDate // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 
