@@ -16,7 +16,7 @@ _AssetsData _$AssetsDataFromJson(Map<String, dynamic> json) => _AssetsData(
           ?.map((e) => (e as num).toInt())
           .toList() ??
       const [],
-  bonusDate: (json['bonusDate'] as num?)?.toInt() ?? 10,
+  bonusDate: (json['bonusDate'] as num?)?.toInt() ?? 5,
 );
 
 Map<String, dynamic> _$AssetsDataToJson(_AssetsData instance) =>

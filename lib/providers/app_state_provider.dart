@@ -192,13 +192,15 @@ class FinancialCalculation extends _$FinancialCalculation {
     }
     
     if (basicInfo.savingsGoal > 0) {
-      if (maxTargetDate == null) {
-        return {
-          'isDataReady': false,
-          'message': '貯金目標を計算するため、少なくとも1つの費用項目とその目標時期を設定してください'
-        };
+      if (!basicInfo.alwaysKeepSavingsGoal) {
+        if (maxTargetDate == null) {
+          return {
+            'isDataReady': false,
+            'message': '貯金目標を計算するため、少なくとも1つの費用項目とその目標時期を設定してください'
+          };
+        }
+        targets.add({'cost': basicInfo.savingsGoal, 'date': maxTargetDate});
       }
-      targets.add({'cost': basicInfo.savingsGoal, 'date': maxTargetDate});
     }
 
     targets.sort((a, b) {
@@ -208,7 +210,7 @@ class FinancialCalculation extends _$FinancialCalculation {
     });
 
     int minAllowedExpense = -1;
-    int cumulativeCost = 0;
+    int cumulativeCost = basicInfo.alwaysKeepSavingsGoal ? basicInfo.savingsGoal : 0;
     bool isImpossible = false;
     String deficitMessage = '';
     int deficitAmount = 0;
@@ -271,11 +273,13 @@ class FinancialCalculation extends _$FinancialCalculation {
           }
         }
         if (testInfo.savingsGoal > 0) {
-          testTargets.add({'cost': testInfo.savingsGoal, 'date': testMaxTargetDate ?? startDateParsed});
+          if (!testInfo.alwaysKeepSavingsGoal) {
+            testTargets.add({'cost': testInfo.savingsGoal, 'date': testMaxTargetDate ?? startDateParsed});
+          }
         }
         testTargets.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
 
-        int tempCum = 0;
+        int tempCum = testInfo.alwaysKeepSavingsGoal ? testInfo.savingsGoal : 0;
         int tempMin = -1;
         bool tempImp = false;
         for (int i = 0; i < testTargets.length; i++) {
@@ -343,7 +347,7 @@ class FinancialCalculation extends _$FinancialCalculation {
       }
 
       Map<DateTime, int> cumulativeByDate = {};
-      int totalSoFar = 0;
+      int totalSoFar = basicInfo.alwaysKeepSavingsGoal ? basicInfo.savingsGoal : 0;
       for (final t in targets) {
         totalSoFar += t['cost'] as int;
         cumulativeByDate[t['date'] as DateTime] = totalSoFar;
@@ -448,7 +452,8 @@ class ItemAffordabilityCalculation extends _$ItemAffordabilityCalculation {
             ((assets.monthlyIncome - basicInfo.monthlyExpense) * incomeCount) +
             (assets.bonusAmount * bonusCount);
 
-        if (projected >= cumulativeCost) {
+        int requiredProjected = cumulativeCost + (basicInfo.alwaysKeepSavingsGoal ? basicInfo.savingsGoal : 0);
+        if (projected >= requiredProjected) {
           affordableDate = DateTime(targetMonth.year, targetMonth.month, 1);
           remainingBalance = projected - cumulativeCost;
           break;

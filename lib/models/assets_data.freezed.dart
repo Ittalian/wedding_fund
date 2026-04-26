@@ -216,7 +216,7 @@ return $default(_that.currentSavings,_that.monthlyIncome,_that.incomeDate,_that.
 @JsonSerializable()
 
 class _AssetsData implements AssetsData {
-  const _AssetsData({this.currentSavings = 0, this.monthlyIncome = 0, this.incomeDate = 25, this.bonusAmount = 0, final  List<int> bonusMonths = const [], this.bonusDate = 10}): _bonusMonths = bonusMonths;
+  const _AssetsData({this.currentSavings = 0, this.monthlyIncome = 0, this.incomeDate = 25, this.bonusAmount = 0, final  List<int> bonusMonths = const [], this.bonusDate = 5}): _bonusMonths = bonusMonths;
   factory _AssetsData.fromJson(Map<String, dynamic> json) => _$AssetsDataFromJson(json);
 
 @override@JsonKey() final  int currentSavings;

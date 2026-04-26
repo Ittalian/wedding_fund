@@ -16,6 +16,7 @@ _BasicInfoData _$BasicInfoDataFromJson(Map<String, dynamic> json) =>
               .toList() ??
           const [],
       savingsGoal: (json['savingsGoal'] as num?)?.toInt() ?? 0,
+      alwaysKeepSavingsGoal: json['alwaysKeepSavingsGoal'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$BasicInfoDataToJson(_BasicInfoData instance) =>
@@ -24,4 +25,5 @@ Map<String, dynamic> _$BasicInfoDataToJson(_BasicInfoData instance) =>
       'monthlyExpense': instance.monthlyExpense,
       'expenses': instance.expenses.map((e) => e.toJson()).toList(),
       'savingsGoal': instance.savingsGoal,
+      'alwaysKeepSavingsGoal': instance.alwaysKeepSavingsGoal,
     };

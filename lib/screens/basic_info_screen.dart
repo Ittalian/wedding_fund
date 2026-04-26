@@ -24,6 +24,7 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
 
   bool _isSaving = false;
   bool _isInitialized = false;
+  bool _alwaysKeepSavingsGoal = false;
 
   static const List<Map<String, String>> _defaultItems = [
     {'id': 'engagement_ring', 'name': '婚約指輪'},
@@ -54,6 +55,7 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
       _forecastStartDateController.text = data.forecastStartDate ?? '';
       _monthlyExpenseController.text = data.monthlyExpense.toString();
       _savingsGoalController.text = data.savingsGoal.toString();
+      _alwaysKeepSavingsGoal = data.alwaysKeepSavingsGoal;
 
       // expenses が空の場合はデフォルト5項目を追加
       if (data.expenses.isEmpty) {
@@ -323,6 +325,7 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
       forecastStartDate: startDate.isEmpty ? null : startDate,
       monthlyExpense: int.tryParse(_monthlyExpenseController.text) ?? 0,
       savingsGoal: int.tryParse(_savingsGoalController.text) ?? 0,
+      alwaysKeepSavingsGoal: _alwaysKeepSavingsGoal,
       expenses: _expenses,
     );
 
@@ -390,6 +393,17 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                       }
                       return null;
                     },
+                  ),
+                  CheckboxListTile(
+                    title: const Text('常に目標額を貯金'),
+                    value: _alwaysKeepSavingsGoal,
+                    onChanged: (bool? value) {
+                      setState(() {
+                        _alwaysKeepSavingsGoal = value ?? false;
+                      });
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
                   ),
 
                 const SizedBox(height: 16),

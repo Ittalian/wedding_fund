@@ -136,7 +136,7 @@ final class FinancialCalculationProvider
 }
 
 String _$financialCalculationHash() =>
-    r'7fb76cc43c39e27c7c949e944eff049d071bd674';
+    r'9507f6605ab6c29132f969cfba9ebd2703e0329a';
 
 /// 出費額計算：各 ExpenseItem の targetDate に基づき、最大の毎月の固定出費許容額を逆算
 
@@ -200,7 +200,7 @@ final class ItemAffordabilityCalculationProvider
 }
 
 String _$itemAffordabilityCalculationHash() =>
-    r'e2a7026324d9fff48e1bf1ab6d824f71b8e5aab8';
+    r'55a96137722d1ba47c2abcba0dffb1c0a1ca4c7d';
 
 /// 時期計算：各 ExpenseItem を賄える時期を計算（order 順、累積）
 
