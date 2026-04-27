@@ -222,39 +222,124 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
-    return Card(
-      elevation: 4,
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            const Text(
-              '計算結果（出費額計算）',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey),
+    final advanceSuggestions = calcData['advanceSuggestions'] as List<dynamic>?;
+    final increaseSuggestions = calcData['increaseSuggestions'] as List<dynamic>?;
+    final hasOptimization =
+        (advanceSuggestions != null && advanceSuggestions.isNotEmpty) ||
+        (increaseSuggestions != null && increaseSuggestions.isNotEmpty);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              children: [
+                const Text(
+                  '計算結果（出費額計算）',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                const Text('目標達成に必要な毎月の出費上限額',
+                    style: TextStyle(fontSize: 14)),
+                Text(
+                  fmt.format(calcData['monthlyAllowedExpense']),
+                  style: const TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.indigo),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '全体の目標貯金額: ${fmt.format(calcData['targetSavings'])}',
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            const Text('目標達成に必要な毎月の出費上限額',
-                style: TextStyle(fontSize: 14)),
-            Text(
-              fmt.format(calcData['monthlyAllowedExpense']),
-              style: const TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.indigo),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '全体の目標貯金額: ${fmt.format(calcData['targetSavings'])}',
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-          ],
+          ),
         ),
-      ),
+        if (hasOptimization) ...[
+          const SizedBox(height: 16),
+          const Text(
+            '最適化提案',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          // Approach A: 目標時期の前倒し
+          if (advanceSuggestions != null && advanceSuggestions.isNotEmpty)
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.fast_forward, color: Colors.green, size: 20),
+                        SizedBox(width: 8),
+                        Text('費用の時期を前倒しできます',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ...advanceSuggestions.map((s) {
+                      final earliestDate = s['earliestDate'] as DateTime;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          '・${s['name']} を ${earliestDate.year}年${earliestDate.month}月 まで前倒しできます',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 8),
+          // Approach B: 費用・貯金の増額
+          if (increaseSuggestions != null && increaseSuggestions.isNotEmpty)
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.trending_up, color: Colors.deepPurple, size: 20),
+                        SizedBox(width: 8),
+                        Text('費用・貯金目標を増やせます',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ...increaseSuggestions.map((s) {
+                      final maxCost = s['maxCost'] as int;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          '・${s['name']} を ${fmt.format(maxCost)} 以上に増やせます',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ],
     );
   }
 

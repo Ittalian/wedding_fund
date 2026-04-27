@@ -122,6 +122,241 @@ int _calculateIncomeCount(DateTime startDate, DateTime targetDate, int incomeDat
   return count;
 }
 
+/// DateTime を Firestore 保存用文字列に変換
+String _dateToStr(DateTime dt) =>
+    '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+
+/// Firestore 文字列を DateTime に変換
+DateTime _strToDate(String s) {
+  final p = s.split('-');
+  return DateTime(int.parse(p[0]), int.parse(p[1]), int.parse(p[2]));
+}
+
+/// 提案の Map を Firestore 保存可能な形式にシリアライズ（DateTime→String）
+Map<String, dynamic> _serializeSuggestions(Map<String, dynamic> s) {
+  return {
+    'reductionSuggestions': s['reductionSuggestions'] ?? [],
+    'increaseSuggestions': s['increaseSuggestions'] ?? [],
+    'delaySuggestions': ((s['delaySuggestions'] ?? []) as List).map((d) => {
+          'items': d['items'],
+          'requiredDate': _dateToStr(d['requiredDate'] as DateTime),
+          'originalDate': _dateToStr(d['originalDate'] as DateTime),
+        }).toList(),
+    'advanceSuggestions': ((s['advanceSuggestions'] ?? []) as List).map((d) => {
+          'name': d['name'],
+          'originalDate': _dateToStr(d['originalDate'] as DateTime),
+          'earliestDate': _dateToStr(d['earliestDate'] as DateTime),
+        }).toList(),
+  };
+}
+
+/// Firestore から読み込んだキャッシュを DateTime 付きの Map に変換
+Map<String, dynamic> _deserializeSuggestions(Map raw) {
+  List<Map<String, dynamic>> toList(dynamic src) =>
+      src == null ? [] : (src as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  return {
+    'reductionSuggestions': toList(raw['reductionSuggestions']),
+    'increaseSuggestions': toList(raw['increaseSuggestions']),
+    'delaySuggestions': toList(raw['delaySuggestions']).map((d) => {
+          'items': List<String>.from(d['items'] as List),
+          'requiredDate': _strToDate(d['requiredDate'] as String),
+          'originalDate': _strToDate(d['originalDate'] as String),
+        }).toList(),
+    'advanceSuggestions': toList(raw['advanceSuggestions']).map((d) => {
+          'name': d['name'] as String,
+          'originalDate': _strToDate(d['originalDate'] as String),
+          'earliestDate': _strToDate(d['earliestDate'] as String),
+        }).toList(),
+  };
+}
+
+/// 提案を計算する（二分探索を含む重い処理）。保存時に呼び出してFirestoreにキャッシュする。
+Map<String, dynamic> computeSuggestions(AssetsData assets, BasicInfoData basicInfo) {
+  final startDateParsed = _parseStartDate(basicInfo.forecastStartDate);
+  if (startDateParsed == null) return {};
+  final simulationStart = startDateParsed;
+
+  // targets を組み立て
+  List<Map<String, dynamic>> targets = [];
+  DateTime? maxTargetDate;
+  for (final item in basicInfo.expenses) {
+    if (item.targetDate == null || item.targetDate!.isEmpty) return {};
+    final d = _parseTargetMonth(item.targetDate);
+    if (d == null) return {};
+    targets.add({'cost': item.cost, 'date': d});
+    if (maxTargetDate == null || d.isAfter(maxTargetDate)) maxTargetDate = d;
+  }
+  if (basicInfo.savingsGoal > 0 && !basicInfo.alwaysKeepSavingsGoal) {
+    if (maxTargetDate == null) return {};
+    targets.add({'cost': basicInfo.savingsGoal, 'date': maxTargetDate});
+  }
+  targets.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+
+  // minAllowedExpense / isImpossible を計算
+  int minAllowedExpense = -1;
+  int cumulativeCost = basicInfo.alwaysKeepSavingsGoal ? basicInfo.savingsGoal : 0;
+  bool isImpossible = false;
+  for (int i = 0; i < targets.length; i++) {
+    cumulativeCost += targets[i]['cost'] as int;
+    final tDate = targets[i]['date'] as DateTime;
+    int iC = _calculateIncomeCount(simulationStart, tDate, assets.incomeDate, isBonus: false);
+    int bC = _calculateIncomeCount(simulationStart, tDate, assets.bonusDate, isBonus: true, bonusMonths: assets.bonusMonths);
+    final eBonus = bC * assets.bonusAmount;
+    if (iC == 0) {
+      if (assets.currentSavings + eBonus < cumulativeCost) { isImpossible = true; break; }
+      final a = assets.monthlyIncome;
+      if (minAllowedExpense == -1 || a < minAllowedExpense) minAllowedExpense = a;
+    } else {
+      final reqAdd = cumulativeCost - assets.currentSavings - eBonus;
+      final reqMo = reqAdd > 0 ? (reqAdd / iC).ceil() : 0;
+      final a = assets.monthlyIncome - reqMo;
+      if (minAllowedExpense == -1 || a < minAllowedExpense) minAllowedExpense = a;
+    }
+  }
+  if (cumulativeCost == 0) minAllowedExpense = assets.monthlyIncome;
+
+  // isPlanDeficit ヘルパー
+  bool isPlanDeficit(BasicInfoData testInfo) {
+    List<Map<String, dynamic>> tt = [];
+    DateTime? tmx;
+    for (final item in testInfo.expenses) {
+      final d = item.targetDate != null && item.targetDate!.isNotEmpty
+          ? _parseTargetMonth(item.targetDate) ?? startDateParsed
+          : startDateParsed;
+      tt.add({'cost': item.cost, 'date': d});
+      if (tmx == null || d.isAfter(tmx)) tmx = d;
+    }
+    if (testInfo.savingsGoal > 0 && !testInfo.alwaysKeepSavingsGoal) {
+      tt.add({'cost': testInfo.savingsGoal, 'date': tmx ?? startDateParsed});
+    }
+    tt.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+    int cum = testInfo.alwaysKeepSavingsGoal ? testInfo.savingsGoal : 0;
+    int mn = -1;
+    bool imp = false;
+    for (final t in tt) {
+      cum += t['cost'] as int;
+      final tDate = t['date'] as DateTime;
+      int iC = _calculateIncomeCount(simulationStart, tDate, assets.incomeDate, isBonus: false);
+      int bC = _calculateIncomeCount(simulationStart, tDate, assets.bonusDate, isBonus: true, bonusMonths: assets.bonusMonths);
+      final eB = bC * assets.bonusAmount;
+      if (iC == 0) {
+        if (assets.currentSavings + eB < cum) { imp = true; break; }
+        final al = assets.monthlyIncome;
+        if (mn == -1 || al < mn) mn = al;
+      } else {
+        final rA = cum - assets.currentSavings - eB;
+        final rM = rA > 0 ? (rA / iC).ceil() : 0;
+        final al = assets.monthlyIncome - rM;
+        if (mn == -1 || al < mn) mn = al;
+      }
+    }
+    return imp || mn < 0;
+  }
+
+  List<Map<String, dynamic>> reductionSuggestions = [];
+  List<Map<String, dynamic>> delaySuggestions = [];
+  List<Map<String, dynamic>> advanceSuggestions = [];
+  List<Map<String, dynamic>> increaseSuggestions = [];
+
+  if (isImpossible || minAllowedExpense < 0) {
+    // 減額提案
+    for (int i = 0; i < basicInfo.expenses.length; i++) {
+      final item = basicInfo.expenses[i];
+      if (item.cost <= 0) continue;
+      int left = 0, right = item.cost - 1, best = -1;
+      while (left <= right) {
+        final mid = left + (right - left) ~/ 2;
+        final te = [...basicInfo.expenses]; te[i] = item.copyWith(cost: mid);
+        if (!isPlanDeficit(basicInfo.copyWith(expenses: te))) { best = mid; left = mid + 1; } else { right = mid - 1; }
+      }
+      if (best != -1) reductionSuggestions.add({'name': item.name, 'suggestedCost': best});
+    }
+    if (basicInfo.savingsGoal > 0) {
+      int left = 0, right = basicInfo.savingsGoal - 1, best = -1;
+      while (left <= right) {
+        final mid = left + (right - left) ~/ 2;
+        if (!isPlanDeficit(basicInfo.copyWith(savingsGoal: mid))) { best = mid; left = mid + 1; } else { right = mid - 1; }
+      }
+      if (best != -1) reductionSuggestions.add({'name': '目標貯金', 'suggestedCost': best});
+    }
+    // 時期延長提案
+    Map<DateTime, int> cumByDate = {};
+    int tot = basicInfo.alwaysKeepSavingsGoal ? basicInfo.savingsGoal : 0;
+    for (final t in targets) { tot += t['cost'] as int; cumByDate[t['date'] as DateTime] = tot; }
+    if (assets.monthlyIncome - basicInfo.monthlyExpense > 0 || assets.bonusAmount > 0) {
+      cumByDate.forEach((tDate, needed) {
+        DateTime req = simulationStart; bool ok = false;
+        for (int m = 0; m <= 600; m++) {
+          final tm = DateTime(simulationStart.year, simulationStart.month + m + 1, 0);
+          final iC = _calculateIncomeCount(simulationStart, tm, assets.incomeDate, isBonus: false);
+          final bC = _calculateIncomeCount(simulationStart, tm, assets.bonusDate, isBonus: true, bonusMonths: assets.bonusMonths);
+          final proj = assets.currentSavings + (assets.monthlyIncome - basicInfo.monthlyExpense) * iC + bC * assets.bonusAmount;
+          if (proj >= needed) { req = DateTime(tm.year, tm.month, 1); ok = true; break; }
+        }
+        if (ok && req.isAfter(tDate)) {
+          final items = basicInfo.expenses.where((it) {
+            final d = it.targetDate != null && it.targetDate!.isNotEmpty
+                ? _parseTargetMonth(it.targetDate) ?? startDateParsed : startDateParsed;
+            return d == tDate;
+          }).map((it) => it.name).toList();
+          delaySuggestions.add({'items': items, 'requiredDate': req, 'originalDate': tDate});
+        }
+      });
+    }
+  } else {
+    // 前倒し提案
+    for (int i = 0; i < basicInfo.expenses.length; i++) {
+      final item = basicInfo.expenses[i];
+      if (item.targetDate == null || item.targetDate!.isEmpty) continue;
+      final origDate = _parseTargetMonth(item.targetDate); if (origDate == null) continue;
+      final maxAdv = (origDate.year * 12 + origDate.month) - (simulationStart.year * 12 + simulationStart.month);
+      if (maxAdv <= 0) continue;
+      int left = 1, right = maxAdv, bestAdv = 0;
+      while (left <= right) {
+        final mid = left + (right - left) ~/ 2;
+        final oIdx = origDate.year * 12 + (origDate.month - 1);
+        final nIdx = oIdx - mid;
+        final ds = '${nIdx ~/ 12}/${(nIdx % 12 + 1).toString().padLeft(2, '0')}';
+        final te = [...basicInfo.expenses]; te[i] = item.copyWith(targetDate: ds);
+        if (!isPlanDeficit(basicInfo.copyWith(expenses: te))) { bestAdv = mid; left = mid + 1; } else { right = mid - 1; }
+      }
+      if (bestAdv > 0) {
+        final oIdx = origDate.year * 12 + (origDate.month - 1);
+        final nIdx = oIdx - bestAdv;
+        advanceSuggestions.add({'name': item.name, 'originalDate': origDate, 'earliestDate': DateTime(nIdx ~/ 12, nIdx % 12 + 1)});
+      }
+    }
+    // 増額提案
+    const int maxSearch = 1000000000;
+    for (int i = 0; i < basicInfo.expenses.length; i++) {
+      final item = basicInfo.expenses[i];
+      int left = item.cost + 1, right = maxSearch, best = item.cost;
+      while (left <= right) {
+        final mid = left + (right - left) ~/ 2;
+        final te = [...basicInfo.expenses]; te[i] = item.copyWith(cost: mid);
+        if (!isPlanDeficit(basicInfo.copyWith(expenses: te))) { best = mid; left = mid + 1; } else { right = mid - 1; }
+      }
+      if (best > item.cost) increaseSuggestions.add({'name': item.name, 'currentCost': item.cost, 'maxCost': best});
+    }
+    {
+      int left = basicInfo.savingsGoal + 1, right = maxSearch, best = basicInfo.savingsGoal;
+      while (left <= right) {
+        final mid = left + (right - left) ~/ 2;
+        if (!isPlanDeficit(basicInfo.copyWith(savingsGoal: mid))) { best = mid; left = mid + 1; } else { right = mid - 1; }
+      }
+      if (best > basicInfo.savingsGoal) increaseSuggestions.add({'name': '目標貯金', 'currentCost': basicInfo.savingsGoal, 'maxCost': best});
+    }
+  }
+
+  return {
+    'reductionSuggestions': reductionSuggestions,
+    'delaySuggestions': delaySuggestions,
+    'advanceSuggestions': advanceSuggestions,
+    'increaseSuggestions': increaseSuggestions,
+  };
+}
+
+
 /// 出費額計算：各 ExpenseItem の targetDate に基づき、最大の毎月の固定出費許容額を逆算
 @riverpod
 class FinancialCalculation extends _$FinancialCalculation {
@@ -255,139 +490,12 @@ class FinancialCalculation extends _$FinancialCalculation {
       minAllowedExpense = assets.monthlyIncome;
     }
 
-    List<Map<String, dynamic>> reductionSuggestions = [];
-    List<Map<String, dynamic>> delaySuggestions = [];
-
-    if (isImpossible || minAllowedExpense < 0) {
-      bool isPlanDeficit(BasicInfoData testInfo) {
-        List<Map<String, dynamic>> testTargets = [];
-        DateTime? testMaxTargetDate;
-        
-        for (final item in testInfo.expenses) {
-          final dateToUse = item.targetDate != null && item.targetDate!.isNotEmpty
-              ? _parseTargetMonth(item.targetDate) ?? startDateParsed
-              : startDateParsed;
-          testTargets.add({'cost': item.cost, 'date': dateToUse});
-          if (testMaxTargetDate == null || dateToUse.isAfter(testMaxTargetDate)) {
-            testMaxTargetDate = dateToUse;
-          }
-        }
-        if (testInfo.savingsGoal > 0) {
-          if (!testInfo.alwaysKeepSavingsGoal) {
-            testTargets.add({'cost': testInfo.savingsGoal, 'date': testMaxTargetDate ?? startDateParsed});
-          }
-        }
-        testTargets.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
-
-        int tempCum = testInfo.alwaysKeepSavingsGoal ? testInfo.savingsGoal : 0;
-        int tempMin = -1;
-        bool tempImp = false;
-        for (int i = 0; i < testTargets.length; i++) {
-          tempCum += testTargets[i]['cost'] as int;
-          final tDate = testTargets[i]['date'] as DateTime;
-          int iCount = _calculateIncomeCount(simulationStart, tDate, assets.incomeDate, isBonus: false);
-          int bCount = _calculateIncomeCount(simulationStart, tDate, assets.bonusDate, isBonus: true, bonusMonths: assets.bonusMonths);
-          final eBonus = bCount * assets.bonusAmount;
-
-          if (iCount == 0) {
-            if (assets.currentSavings + eBonus < tempCum) {
-              tempImp = true;
-              break;
-            } else {
-              final allowed = assets.monthlyIncome;
-              if (tempMin == -1 || allowed < tempMin) tempMin = allowed;
-            }
-          } else {
-            final reqAdd = tempCum - assets.currentSavings - eBonus;
-            int reqMo = reqAdd > 0 ? (reqAdd / iCount).ceil() : 0;
-            final allowed = assets.monthlyIncome - reqMo;
-            if (tempMin == -1 || allowed < tempMin) tempMin = allowed;
-          }
-        }
-        return tempImp || tempMin < 0;
-      }
-
-      for (int i = 0; i < basicInfo.expenses.length; i++) {
-        final item = basicInfo.expenses[i];
-        if (item.cost <= 0) continue;
-        int left = 0;
-        int right = item.cost - 1;
-        int bestValid = -1;
-        while (left <= right) {
-          int mid = left + (right - left) ~/ 2;
-          final testExpenses = [...basicInfo.expenses];
-          testExpenses[i] = item.copyWith(cost: mid);
-          if (!isPlanDeficit(basicInfo.copyWith(expenses: testExpenses))) {
-            bestValid = mid;
-            left = mid + 1;
-          } else {
-            right = mid - 1;
-          }
-        }
-        if (bestValid != -1) {
-          reductionSuggestions.add({'name': item.name, 'suggestedCost': bestValid});
-        }
-      }
-      if (basicInfo.savingsGoal > 0) {
-        int left = 0;
-        int right = basicInfo.savingsGoal - 1;
-        int bestValid = -1;
-        while (left <= right) {
-          int mid = left + (right - left) ~/ 2;
-          if (!isPlanDeficit(basicInfo.copyWith(savingsGoal: mid))) {
-            bestValid = mid;
-            left = mid + 1;
-          } else {
-            right = mid - 1;
-          }
-        }
-        if (bestValid != -1) {
-          reductionSuggestions.add({'name': '目標貯金', 'suggestedCost': bestValid});
-        }
-      }
-
-      Map<DateTime, int> cumulativeByDate = {};
-      int totalSoFar = basicInfo.alwaysKeepSavingsGoal ? basicInfo.savingsGoal : 0;
-      for (final t in targets) {
-        totalSoFar += t['cost'] as int;
-        cumulativeByDate[t['date'] as DateTime] = totalSoFar;
-      }
-
-      int netMonthly = assets.monthlyIncome - basicInfo.monthlyExpense;
-      if (netMonthly > 0 || assets.bonusAmount > 0) {
-        cumulativeByDate.forEach((targetDate, cumulativeNeeded) {
-          DateTime requiredDate = simulationStart;
-          bool canAfford = false;
-          
-          for (int m = 0; m <= 600; m++) {
-            final tm = DateTime(simulationStart.year, simulationStart.month + m + 1, 0); // 月末
-            int iC = _calculateIncomeCount(simulationStart, tm, assets.incomeDate, isBonus: false);
-            int bC = _calculateIncomeCount(simulationStart, tm, assets.bonusDate, isBonus: true, bonusMonths: assets.bonusMonths);
-            int projected = assets.currentSavings + (assets.monthlyIncome - basicInfo.monthlyExpense) * iC + bC * assets.bonusAmount;
-            if (projected >= cumulativeNeeded) {
-              requiredDate = DateTime(tm.year, tm.month, 1);
-              canAfford = true;
-              break;
-            }
-          }
-
-          if (canAfford && requiredDate.isAfter(targetDate)) {
-            List<String> itemsHere = [];
-            for (final item in basicInfo.expenses) {
-              final d = item.targetDate != null && item.targetDate!.isNotEmpty
-                  ? _parseTargetMonth(item.targetDate) ?? startDateParsed
-                  : startDateParsed;
-              if (d == targetDate) itemsHere.add(item.name);
-            }
-            delaySuggestions.add({
-              'items': itemsHere,
-              'requiredDate': requiredDate,
-              'originalDate': targetDate,
-            });
-          }
-        });
-      }
-    }
+    // キャッシュから提案を取得（二分探索は保存時のみ実行）
+    final cache = ref.watch(calculationCacheProvider).value;
+    final reductionSuggestions = (cache?['reductionSuggestions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final delaySuggestions = (cache?['delaySuggestions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final advanceSuggestions = (cache?['advanceSuggestions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final increaseSuggestions = (cache?['increaseSuggestions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
     if (isImpossible || minAllowedExpense < 0) {
       return {
@@ -407,7 +515,36 @@ class FinancialCalculation extends _$FinancialCalculation {
       'isDeficit': false,
       'monthlyAllowedExpense': minAllowedExpense,
       'targetSavings': cumulativeCost,
+      'advanceSuggestions': advanceSuggestions,
+      'increaseSuggestions': increaseSuggestions,
     };
+  }
+}
+
+/// 提案計算結果をFirestoreにキャッシュし、ストリームで提供する
+@riverpod
+class CalculationCacheNotifier extends _$CalculationCacheNotifier {
+  @override
+  Stream<Map<String, dynamic>?> build() {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc('my_user_data')
+        .snapshots()
+        .map((snapshot) {
+      final raw = snapshot.data()?['calculationCache'];
+      if (raw == null) return null;
+      return _deserializeSuggestions(Map<String, dynamic>.from(raw as Map));
+    });
+  }
+
+  /// assetsData または basicInfoData が保存されたときに呼び出す
+  Future<void> recompute(AssetsData assets, BasicInfoData basicInfo) async {
+    final result = computeSuggestions(assets, basicInfo);
+    final serialized = _serializeSuggestions(result);
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc('my_user_data')
+        .set({'calculationCache': serialized}, SetOptions(merge: true));
   }
 }
 

@@ -136,7 +136,7 @@ final class FinancialCalculationProvider
 }
 
 String _$financialCalculationHash() =>
-    r'9507f6605ab6c29132f969cfba9ebd2703e0329a';
+    r'1f5e7689d1716e16710d8740013a1de199672a07';
 
 /// 出費額計算：各 ExpenseItem の targetDate に基づき、最大の毎月の固定出費許容額を逆算
 
@@ -151,6 +151,67 @@ abstract class _$FinancialCalculation extends $Notifier<Map<String, dynamic>> {
             as $ClassProviderElement<
               AnyNotifier<Map<String, dynamic>, Map<String, dynamic>>,
               Map<String, dynamic>,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
+  }
+}
+
+/// 提案計算結果をFirestoreにキャッシュし、ストリームで提供する
+
+@ProviderFor(CalculationCacheNotifier)
+final calculationCacheProvider = CalculationCacheNotifierProvider._();
+
+/// 提案計算結果をFirestoreにキャッシュし、ストリームで提供する
+final class CalculationCacheNotifierProvider
+    extends
+        $StreamNotifierProvider<
+          CalculationCacheNotifier,
+          Map<String, dynamic>?
+        > {
+  /// 提案計算結果をFirestoreにキャッシュし、ストリームで提供する
+  CalculationCacheNotifierProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'calculationCacheProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$calculationCacheNotifierHash();
+
+  @$internal
+  @override
+  CalculationCacheNotifier create() => CalculationCacheNotifier();
+}
+
+String _$calculationCacheNotifierHash() =>
+    r'f23f22fcf2731fc30ec3b894b241e799beec213e';
+
+/// 提案計算結果をFirestoreにキャッシュし、ストリームで提供する
+
+abstract class _$CalculationCacheNotifier
+    extends $StreamNotifier<Map<String, dynamic>?> {
+  Stream<Map<String, dynamic>?> build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref =
+        this.ref
+            as $Ref<AsyncValue<Map<String, dynamic>?>, Map<String, dynamic>?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<
+                AsyncValue<Map<String, dynamic>?>,
+                Map<String, dynamic>?
+              >,
+              AsyncValue<Map<String, dynamic>?>,
               Object?,
               Object?
             >;
@@ -200,7 +261,7 @@ final class ItemAffordabilityCalculationProvider
 }
 
 String _$itemAffordabilityCalculationHash() =>
-    r'55a96137722d1ba47c2abcba0dffb1c0a1ca4c7d';
+    r'6a1da12c8a23f2d6359da25b859d400eb9635e0d';
 
 /// 時期計算：各 ExpenseItem を賄える時期を計算（order 順、累積）
 

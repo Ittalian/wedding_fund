@@ -59,6 +59,8 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
     final bonusDate = int.tryParse(_bonusDateController.text) ?? 5;
 
     setState(() => _isSaving = true);
+    _showSavingDialog();
+
     final data = AssetsData(
       currentSavings: int.tryParse(_savingsController.text) ?? 0,
       monthlyIncome: int.tryParse(_incomeController.text) ?? 0,
@@ -70,11 +72,42 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
 
     await ref.read(atp.assetsDataProvider.notifier).updateAssets(data);
 
+    // 提案キャッシュを再計算してFirestoreに保存
+    final basicInfo = ref.read(atp.basicInfoDataProvider).value;
+    if (basicInfo != null) {
+      await ref.read(atp.calculationCacheProvider.notifier).recompute(data, basicInfo);
+    }
+
     if (mounted) {
+      Navigator.of(context).pop(); // ダイアログを閉じる
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('保存しました')));
       Navigator.pop(context);
     }
+  }
+
+  void _showSavingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PopScope(
+        canPop: false,
+        child: const AlertDialog(
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Text('保存中...'),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _toggleMonth(int month) {
@@ -199,9 +232,15 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
                     },
                   ),
                   const SizedBox(height: 32),
-                ElevatedButton(
+                  ElevatedButton(
                   onPressed: _isSaving ? null : _save,
-                  child: _isSaving ? const CircularProgressIndicator() : const Text('保存する'),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('保存する'),
                 )
               ],
             ),

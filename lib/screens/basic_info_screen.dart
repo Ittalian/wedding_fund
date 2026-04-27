@@ -320,6 +320,8 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
+    _showSavingDialog();
+
     final startDate = _forecastStartDateController.text.trim();
     final data = BasicInfoData(
       forecastStartDate: startDate.isEmpty ? null : startDate,
@@ -331,12 +333,43 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
 
     await ref.read(atp.basicInfoDataProvider.notifier).updateBasicInfo(data);
 
+    // 提案キャッシュを再計算してFirestoreに保存
+    final assets = ref.read(atp.assetsDataProvider).value;
+    if (assets != null) {
+      await ref.read(atp.calculationCacheProvider.notifier).recompute(assets, data);
+    }
+
     if (mounted) {
+      Navigator.of(context).pop(); // ダイアログを閉じる
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('保存しました')));
       Navigator.pop(context);
     }
+  }
+
+  void _showSavingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PopScope(
+        canPop: false,
+        child: const AlertDialog(
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Text('保存中...'),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -485,7 +518,11 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                 ElevatedButton(
                   onPressed: _isSaving ? null : _save,
                   child: _isSaving
-                      ? const CircularProgressIndicator()
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('保存する'),
                 ),
               ],
