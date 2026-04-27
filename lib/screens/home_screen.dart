@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/app_state_provider.dart';
+import '../models/basic_info_data.dart';
 import 'assets_screen.dart';
 import 'basic_info_screen.dart';
 
@@ -170,11 +171,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(height: 8),
                     if (reductionSuggestions != null && reductionSuggestions.isNotEmpty)
-                      ...reductionSuggestions.map((s) => Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text('・${s['name']} を ${fmt.format(s['suggestedCost'])} 以下にする',
-                                style: const TextStyle(fontSize: 13)),
-                          ))
+                      ...reductionSuggestions.map((s) {
+                        final name = s['name'] as String;
+                        final suggestedCost = s['suggestedCost'] as int;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 4,
+                            children: [
+                              Text('・$name を', style: const TextStyle(fontSize: 13)),
+                              ActionChip(
+                                label: Text(
+                                  fmt.format(suggestedCost),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                backgroundColor: Colors.teal,
+                                padding: EdgeInsets.zero,
+                                labelPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: -2),
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () => _applyReductionSuggestion(
+                                  context, name, suggestedCost, fmt),
+                              ),
+                              const Text('以下にする', style: TextStyle(fontSize: 13)),
+                            ],
+                          ),
+                        );
+                      })
                     else
                       const Text('1つの項目だけでは不足を補えません。\n複数の項目を合わせて減額するか、時期の延長をご検討ください。',
                           style: TextStyle(fontSize: 13, color: Colors.grey)),
@@ -202,12 +230,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const SizedBox(height: 8),
                     if (delaySuggestions != null && delaySuggestions.isNotEmpty)
                       ...delaySuggestions.map((s) {
-                        final items = (s['items'] as List<dynamic>).join('・');
+                        final items = (s['items'] as List<dynamic>).cast<String>();
                         final date = s['requiredDate'] as DateTime;
+                        final dateStr = '${date.year}/${date.month.toString().padLeft(2, '0')}';
                         return Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text('・$items を ${date.year}年${date.month}月 まで伸ばす',
-                              style: const TextStyle(fontSize: 13)),
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 4,
+                            children: [
+                              Text('・${items.join('・')} を', style: const TextStyle(fontSize: 13)),
+                              ActionChip(
+                                label: Text(
+                                  '${date.year}年${date.month}月',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                backgroundColor: Colors.indigo,
+                                padding: EdgeInsets.zero,
+                                labelPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: -2),
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () {
+                                  final origDate = s['originalDate'] as DateTime;
+                                  final origStr = '${origDate.year}/${origDate.month.toString().padLeft(2, '0')}';
+                                  _applyDelaySuggestion(context, items, origStr, dateStr);
+                                },
+                              ),
+                              const Text('まで延長する', style: TextStyle(fontSize: 13)),
+                            ],
+                          ),
                         );
                       })
                     else
@@ -291,12 +346,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(height: 8),
                     ...advanceSuggestions.map((s) {
+                      final name = s['name'] as String;
                       final earliestDate = s['earliestDate'] as DateTime;
+                      final dateStr = '${earliestDate.year}/${earliestDate.month.toString().padLeft(2, '0')}';
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(
-                          '・${s['name']} を ${earliestDate.year}年${earliestDate.month}月 まで前倒しできます',
-                          style: const TextStyle(fontSize: 13),
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 4,
+                          children: [
+                            Text('・$name を', style: const TextStyle(fontSize: 13)),
+                            ActionChip(
+                              label: Text(
+                                '${earliestDate.year}年${earliestDate.month}月',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              backgroundColor: Colors.green,
+                              padding: EdgeInsets.zero,
+                              labelPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: -2),
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () {
+                                final origDate = s['originalDate'] as DateTime;
+                                final origStr = '${origDate.year}/${origDate.month.toString().padLeft(2, '0')}';
+                                _applyAdvanceSuggestion(context, name, origStr, dateStr);
+                              },
+                            ),
+                            const Text('まで前倒しできます', style: TextStyle(fontSize: 13)),
+                          ],
                         ),
                       );
                     }),
@@ -325,12 +406,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(height: 8),
                     ...increaseSuggestions.map((s) {
+                      final name = s['name'] as String;
                       final maxCost = s['maxCost'] as int;
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(
-                          '・${s['name']} を ${fmt.format(maxCost)} 以上に増やせます',
-                          style: const TextStyle(fontSize: 13),
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 4,
+                          children: [
+                            Text('・$name を', style: const TextStyle(fontSize: 13)),
+                            ActionChip(
+                              label: Text(
+                                fmt.format(maxCost),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              backgroundColor: Colors.deepPurple,
+                              padding: EdgeInsets.zero,
+                              labelPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: -2),
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () {
+                                final currentCost = s['currentCost'] as int;
+                                _applyIncreaseSuggestion(context, name, currentCost, maxCost, fmt);
+                              },
+                            ),
+                            const Text('まで増やせます', style: TextStyle(fontSize: 13)),
+                          ],
                         ),
                       );
                     }),
@@ -438,6 +543,180 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           );
         }),
       ],
+    );
+  }
+
+  // ──────────────────────────────────────────
+  // 提案適用ヘルパー
+  // ──────────────────────────────────────────
+
+  /// 現在の BasicInfoData を取得して更新・保存する共通処理
+  Future<void> _saveBasicInfoChange(BasicInfoData Function(BasicInfoData) updater) async {
+    final basicInfo = ref.read(basicInfoDataProvider).value;
+    if (basicInfo == null) return;
+    final newInfo = updater(basicInfo);
+    await ref.read(basicInfoDataProvider.notifier).updateBasicInfo(newInfo);
+    final assets = ref.read(assetsDataProvider).value;
+    if (assets != null) {
+      await ref.read(calculationCacheProvider.notifier).recompute(assets, newInfo);
+    }
+  }
+
+  /// 確認ダイアログを表示し、OKなら [onConfirm] を実行
+  Future<void> _showConfirmDialog({
+    required BuildContext context,
+    required String message,
+    required Future<void> Function() onConfirm,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('確認'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () async {
+              // ① 確認ダイアログを閉じる
+              Navigator.pop(ctx);
+              if (!context.mounted) return;
+              // ② 保存中ダイアログを表示
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (ctx2) => PopScope(
+                  canPop: false,
+                  child: const AlertDialog(
+                    content: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 16),
+                        Text('保存中...'),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+              // ③ 保存処理
+              await onConfirm();
+              if (context.mounted) {
+                // ④ 保存中ダイアログを閉じる
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(const SnackBar(content: Text('変更しました')));
+              }
+            },
+            child: const Text('変更する'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 減額提案を適用（費用項目のcostを変更）
+  Future<void> _applyReductionSuggestion(
+    BuildContext context,
+    String itemName,
+    int suggestedCost,
+    NumberFormat fmt,
+  ) async {
+    final isSavingsGoal = itemName == '目標貯金';
+    final label = isSavingsGoal ? '目標貯金' : itemName;
+    // 変更前の金額を basicInfo から取得
+    final basicInfo = ref.read(basicInfoDataProvider).value;
+    final currentCost = isSavingsGoal
+        ? (basicInfo?.savingsGoal ?? 0)
+        : (basicInfo == null ? 0 : basicInfo.expenses.firstWhere((e) => e.name == itemName, orElse: () => basicInfo.expenses.first).cost);
+    await _showConfirmDialog(
+      context: context,
+      message: '「$label」の金額を\n${fmt.format(currentCost)}から${fmt.format(suggestedCost)}\n　に変更しますか？',
+      onConfirm: () => _saveBasicInfoChange((info) {
+        if (isSavingsGoal) {
+          return info.copyWith(savingsGoal: suggestedCost);
+        }
+        final updated = info.expenses.map((e) {
+          if (e.name == itemName) return e.copyWith(cost: suggestedCost);
+          return e;
+        }).toList();
+        return info.copyWith(expenses: updated);
+      }),
+    );
+  }
+
+  /// 延長提案を適用（対象items全てのtargetDateを変更）
+  Future<void> _applyDelaySuggestion(
+    BuildContext context,
+    List<String> itemNames,
+    String originalDateStr,
+    String newDateStr,
+  ) async {
+    String toDisplay(String s) => '${s.replaceFirst('/', '年').replaceAll('/', '月')}月';
+    final namesDisplay = itemNames.join('・');
+    await _showConfirmDialog(
+      context: context,
+      message: '「$namesDisplay」の目標時期を\n${toDisplay(originalDateStr)}から${toDisplay(newDateStr)}\n　に変更しますか？',
+      onConfirm: () => _saveBasicInfoChange((info) {
+        final updated = info.expenses.map((e) {
+          if (itemNames.contains(e.name)) return e.copyWith(targetDate: newDateStr);
+          return e;
+        }).toList();
+        return info.copyWith(expenses: updated);
+      }),
+    );
+  }
+
+  /// 前倒し提案を適用（費用項目のtargetDateを変更）
+  Future<void> _applyAdvanceSuggestion(
+    BuildContext context,
+    String itemName,
+    String originalDateStr,
+    String newDateStr,
+  ) async {
+    String toDisplay(String s) => '${s.replaceFirst('/', '年').replaceAll('/', '月')}月';
+    await _showConfirmDialog(
+      context: context,
+      message: '「$itemName」の目標時期を\n${toDisplay(originalDateStr)}から${toDisplay(newDateStr)}\n　に変更しますか？',
+      onConfirm: () => _saveBasicInfoChange((info) {
+        final updated = info.expenses.map((e) {
+          if (e.name == itemName) return e.copyWith(targetDate: newDateStr);
+          return e;
+        }).toList();
+        return info.copyWith(expenses: updated);
+      }),
+    );
+  }
+
+  /// 増額提案を適用（費用項目のcost または savingsGoalを変更）
+  Future<void> _applyIncreaseSuggestion(
+    BuildContext context,
+    String itemName,
+    int currentCost,
+    int maxCost,
+    NumberFormat fmt,
+  ) async {
+    final isSavingsGoal = itemName == '目標貯金';
+    final label = isSavingsGoal ? '目標貯金' : itemName;
+    await _showConfirmDialog(
+      context: context,
+      message: '「$label」の金額を\n${fmt.format(currentCost)}から${fmt.format(maxCost)}\n　に変更しますか？',
+      onConfirm: () => _saveBasicInfoChange((info) {
+        if (isSavingsGoal) {
+          return info.copyWith(savingsGoal: maxCost);
+        }
+        final updated = info.expenses.map((e) {
+          if (e.name == itemName) return e.copyWith(cost: maxCost);
+          return e;
+        }).toList();
+        return info.copyWith(expenses: updated);
+      }),
     );
   }
 }
