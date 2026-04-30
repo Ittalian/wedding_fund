@@ -12,6 +12,7 @@ _ExpenseItem _$ExpenseItemFromJson(Map<String, dynamic> json) => _ExpenseItem(
   cost: (json['cost'] as num).toInt(),
   order: (json['order'] as num).toInt(),
   targetDate: json['targetDate'] as String?,
+  savingByPayment: (json['savingByPayment'] as num?)?.toInt() ?? 0,
 );
 
 Map<String, dynamic> _$ExpenseItemToJson(_ExpenseItem instance) =>
@@ -21,4 +22,5 @@ Map<String, dynamic> _$ExpenseItemToJson(_ExpenseItem instance) =>
       'cost': instance.cost,
       'order': instance.order,
       'targetDate': instance.targetDate,
+      'savingByPayment': instance.savingByPayment,
     };

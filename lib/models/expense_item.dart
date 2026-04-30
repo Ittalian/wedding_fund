@@ -11,6 +11,7 @@ abstract class ExpenseItem with _$ExpenseItem {
     required int cost,
     required int order,
     String? targetDate, // yyyy/mm 形式
+    @Default(0) int savingByPayment, // この費用支払い後の目標貯金額
   }) = _ExpenseItem;
 
   factory ExpenseItem.fromJson(Map<String, dynamic> json) =>

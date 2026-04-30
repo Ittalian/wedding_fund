@@ -179,16 +179,25 @@ Map<String, dynamic> computeSuggestions(AssetsData assets, BasicInfoData basicIn
   // targets を組み立て
   List<Map<String, dynamic>> targets = [];
   DateTime? maxTargetDate;
+
+  // 詳細設定の有効判定: チェックがオフ かつ 1つ以上の詳細設定がある
+  final bool useDetailSavings = !basicInfo.alwaysKeepSavingsGoal &&
+      basicInfo.expenses.any((e) => e.savingByPayment > 0);
+
   for (final item in basicInfo.expenses) {
     if (item.targetDate == null || item.targetDate!.isEmpty) return {};
     final d = _parseTargetMonth(item.targetDate);
     if (d == null) return {};
-    targets.add({'cost': item.cost, 'date': d});
+    // 詳細設定有効時: 未設定項目は savingsGoal をフォールバック
+    final minBal = useDetailSavings
+        ? (item.savingByPayment > 0 ? item.savingByPayment : basicInfo.savingsGoal)
+        : 0;
+    targets.add({'cost': item.cost, 'date': d, 'minBalance': minBal});
     if (maxTargetDate == null || d.isAfter(maxTargetDate)) maxTargetDate = d;
   }
-  if (basicInfo.savingsGoal > 0 && !basicInfo.alwaysKeepSavingsGoal) {
+  if (basicInfo.savingsGoal > 0 && !basicInfo.alwaysKeepSavingsGoal && !useDetailSavings) {
     if (maxTargetDate == null) return {};
-    targets.add({'cost': basicInfo.savingsGoal, 'date': maxTargetDate});
+    targets.add({'cost': basicInfo.savingsGoal, 'date': maxTargetDate, 'minBalance': 0});
   }
   targets.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
 
@@ -198,16 +207,18 @@ Map<String, dynamic> computeSuggestions(AssetsData assets, BasicInfoData basicIn
   bool isImpossible = false;
   for (int i = 0; i < targets.length; i++) {
     cumulativeCost += targets[i]['cost'] as int;
+    final minBalance = targets[i]['minBalance'] as int? ?? 0;
+    final requiredTotal = cumulativeCost + minBalance;
     final tDate = targets[i]['date'] as DateTime;
     int iC = _calculateIncomeCount(simulationStart, tDate, assets.incomeDate, isBonus: false);
     int bC = _calculateIncomeCount(simulationStart, tDate, assets.bonusDate, isBonus: true, bonusMonths: assets.bonusMonths);
     final eBonus = bC * assets.bonusAmount;
     if (iC == 0) {
-      if (assets.currentSavings + eBonus < cumulativeCost) { isImpossible = true; break; }
+      if (assets.currentSavings + eBonus < requiredTotal) { isImpossible = true; break; }
       final a = assets.monthlyIncome;
       if (minAllowedExpense == -1 || a < minAllowedExpense) minAllowedExpense = a;
     } else {
-      final reqAdd = cumulativeCost - assets.currentSavings - eBonus;
+      final reqAdd = requiredTotal - assets.currentSavings - eBonus;
       final reqMo = reqAdd > 0 ? (reqAdd / iC).ceil() : 0;
       final a = assets.monthlyIncome - reqMo;
       if (minAllowedExpense == -1 || a < minAllowedExpense) minAllowedExpense = a;
@@ -217,17 +228,23 @@ Map<String, dynamic> computeSuggestions(AssetsData assets, BasicInfoData basicIn
 
   // isPlanDeficit ヘルパー
   bool isPlanDeficit(BasicInfoData testInfo) {
+    // 詳細設定の有効判定
+    final bool ud = !testInfo.alwaysKeepSavingsGoal &&
+        testInfo.expenses.any((e) => e.savingByPayment > 0);
     List<Map<String, dynamic>> tt = [];
     DateTime? tmx;
     for (final item in testInfo.expenses) {
       final d = item.targetDate != null && item.targetDate!.isNotEmpty
           ? _parseTargetMonth(item.targetDate) ?? startDateParsed
           : startDateParsed;
-      tt.add({'cost': item.cost, 'date': d});
+      final minBal = ud
+          ? (item.savingByPayment > 0 ? item.savingByPayment : testInfo.savingsGoal)
+          : 0;
+      tt.add({'cost': item.cost, 'date': d, 'minBalance': minBal});
       if (tmx == null || d.isAfter(tmx)) tmx = d;
     }
-    if (testInfo.savingsGoal > 0 && !testInfo.alwaysKeepSavingsGoal) {
-      tt.add({'cost': testInfo.savingsGoal, 'date': tmx ?? startDateParsed});
+    if (testInfo.savingsGoal > 0 && !testInfo.alwaysKeepSavingsGoal && !ud) {
+      tt.add({'cost': testInfo.savingsGoal, 'date': tmx ?? startDateParsed, 'minBalance': 0});
     }
     tt.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
     int cum = testInfo.alwaysKeepSavingsGoal ? testInfo.savingsGoal : 0;
@@ -235,16 +252,18 @@ Map<String, dynamic> computeSuggestions(AssetsData assets, BasicInfoData basicIn
     bool imp = false;
     for (final t in tt) {
       cum += t['cost'] as int;
+      final minBal = t['minBalance'] as int? ?? 0;
+      final requiredTotal = cum + minBal;
       final tDate = t['date'] as DateTime;
       int iC = _calculateIncomeCount(simulationStart, tDate, assets.incomeDate, isBonus: false);
       int bC = _calculateIncomeCount(simulationStart, tDate, assets.bonusDate, isBonus: true, bonusMonths: assets.bonusMonths);
       final eB = bC * assets.bonusAmount;
       if (iC == 0) {
-        if (assets.currentSavings + eB < cum) { imp = true; break; }
+        if (assets.currentSavings + eB < requiredTotal) { imp = true; break; }
         final al = assets.monthlyIncome;
         if (mn == -1 || al < mn) mn = al;
       } else {
-        final rA = cum - assets.currentSavings - eB;
+        final rA = requiredTotal - assets.currentSavings - eB;
         final rM = rA > 0 ? (rA / iC).ceil() : 0;
         final al = assets.monthlyIncome - rM;
         if (mn == -1 || al < mn) mn = al;
@@ -419,22 +438,39 @@ class FinancialCalculation extends _$FinancialCalculation {
         };
       }
 
-      targets.add({'cost': item.cost, 'date': dateToUse});
+      targets.add({'cost': item.cost, 'date': dateToUse, 'minBalance': 0});
       
       if (maxTargetDate == null || dateToUse.isAfter(maxTargetDate)) {
         maxTargetDate = dateToUse;
       }
     }
+
+    // 詳細設定の有効判定: チェックがオフ かつ 1つ以上の詳細設定がある
+    final bool useDetailSavings = !basicInfo.alwaysKeepSavingsGoal &&
+        basicInfo.expenses.any((e) => e.savingByPayment > 0);
+    if (useDetailSavings) {
+      // targets に minBalance を付与し直す
+      for (int i = 0; i < targets.length; i++) {
+        final item = basicInfo.expenses.firstWhere(
+          (e) => _parseTargetMonth(e.targetDate) == targets[i]['date'],
+          orElse: () => basicInfo.expenses[i],
+        );
+        final minBal = item.savingByPayment > 0
+            ? item.savingByPayment
+            : basicInfo.savingsGoal;
+        targets[i] = {...targets[i], 'minBalance': minBal};
+      }
+    }
     
     if (basicInfo.savingsGoal > 0) {
-      if (!basicInfo.alwaysKeepSavingsGoal) {
+      if (!basicInfo.alwaysKeepSavingsGoal && !useDetailSavings) {
         if (maxTargetDate == null) {
           return {
             'isDataReady': false,
             'message': '貯金目標を計算するため、少なくとも1つの費用項目とその目標時期を設定してください'
           };
         }
-        targets.add({'cost': basicInfo.savingsGoal, 'date': maxTargetDate});
+        targets.add({'cost': basicInfo.savingsGoal, 'date': maxTargetDate, 'minBalance': 0});
       }
     }
 
@@ -452,6 +488,8 @@ class FinancialCalculation extends _$FinancialCalculation {
 
     for (int i = 0; i < targets.length; i++) {
       cumulativeCost += targets[i]['cost'] as int;
+      final minBalance = targets[i]['minBalance'] as int? ?? 0;
+      final requiredTotal = cumulativeCost + minBalance;
       final targetDate = targets[i]['date'] as DateTime;
 
       // 指定日までの収入回数とボーナス回数を計算
@@ -460,9 +498,9 @@ class FinancialCalculation extends _$FinancialCalculation {
       final expectedTotalBonus = bonusCount * assets.bonusAmount;
 
       if (incomeCount == 0) {
-        if (assets.currentSavings + expectedTotalBonus < cumulativeCost) {
+        if (assets.currentSavings + expectedTotalBonus < requiredTotal) {
           isImpossible = true;
-          deficitAmount = cumulativeCost - (assets.currentSavings + expectedTotalBonus);
+          deficitAmount = requiredTotal - (assets.currentSavings + expectedTotalBonus);
           final formatter = NumberFormat("#,###");
           final formattedDeficitAmount = formatter.format(deficitAmount);
           deficitMessage = '目標達成に必要な貯金が不足しています。\n(不足額: ¥$formattedDeficitAmount)';
@@ -474,7 +512,7 @@ class FinancialCalculation extends _$FinancialCalculation {
           }
         }
       } else {
-        final requiredAdditionalFunds = cumulativeCost - assets.currentSavings - expectedTotalBonus;
+        final requiredAdditionalFunds = requiredTotal - assets.currentSavings - expectedTotalBonus;
         int requiredPerIncome = 0;
         if (requiredAdditionalFunds > 0) {
           requiredPerIncome = (requiredAdditionalFunds / incomeCount).ceil();
@@ -572,8 +610,17 @@ class ItemAffordabilityCalculation extends _$ItemAffordabilityCalculation {
     final startDateParsed = _parseStartDate(basicInfo.forecastStartDate) ?? DateTime.now();
     final simulationStart = startDateParsed;
 
+    // 詳細設定の有効判定
+    final bool useDetailSavings = !basicInfo.alwaysKeepSavingsGoal &&
+        basicInfo.expenses.any((e) => e.savingByPayment > 0);
+
     for (final item in sortedItems) {
       cumulativeCost += item.cost;
+
+      // この費用支払い後に必要な最低残高
+      final minBalance = useDetailSavings
+          ? (item.savingByPayment > 0 ? item.savingByPayment : basicInfo.savingsGoal)
+          : (basicInfo.alwaysKeepSavingsGoal ? basicInfo.savingsGoal : 0);
 
       String? affordableDateStr;
       DateTime? affordableDate;
@@ -589,7 +636,7 @@ class ItemAffordabilityCalculation extends _$ItemAffordabilityCalculation {
             ((assets.monthlyIncome - basicInfo.monthlyExpense) * incomeCount) +
             (assets.bonusAmount * bonusCount);
 
-        int requiredProjected = cumulativeCost + (basicInfo.alwaysKeepSavingsGoal ? basicInfo.savingsGoal : 0);
+        int requiredProjected = cumulativeCost + minBalance;
         if (projected >= requiredProjected) {
           affordableDate = DateTime(targetMonth.year, targetMonth.month, 1);
           remainingBalance = projected - cumulativeCost;

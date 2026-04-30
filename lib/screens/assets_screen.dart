@@ -132,14 +132,17 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
         error: (err, stack) => Center(child: Text('エラー: $err')),
         data: (data) {
           _loadData(data);
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text('貯金情報を入力', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          return Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text('貯金情報を入力', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _savingsController,
@@ -232,22 +235,38 @@ class _AssetsScreenState extends ConsumerState<AssetsScreen> {
                     },
                   ),
                   const SizedBox(height: 32),
-                  ElevatedButton(
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
                   onPressed: _isSaving ? null : _save,
-                  child: _isSaving
+                  icon: _isSaving
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('保存する'),
-                )
-              ],
+                      : const Icon(Icons.save),
+                  label: const Text('保存する'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
             ),
-            ),
-          );
-        },
+          ),
+        ],
       ),
+    );
+  },
+),
     );
   }
 }

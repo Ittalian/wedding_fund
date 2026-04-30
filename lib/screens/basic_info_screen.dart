@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/basic_info_data.dart';
 import '../models/expense_item.dart';
 import '../providers/app_state_provider.dart' as atp;
+import 'savings_detail_screen.dart';
 
 class BasicInfoScreen extends ConsumerStatefulWidget {
   const BasicInfoScreen({super.key});
@@ -316,6 +317,28 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
     });
   }
 
+  Future<void> _openSavingsDetail() async {
+    final result = await Navigator.push<SavingsDetailResult>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SavingsDetailScreen(
+          expenses: _expenses,
+          savingsGoal: int.tryParse(_savingsGoalController.text) ?? 0,
+        ),
+      ),
+    );
+    if (result != null) {
+      setState(() {
+        _expenses = result.expenses;
+        if (result.shouldUncheckAlwaysKeep) {
+          _alwaysKeepSavingsGoal = false;
+        }
+      });
+      // 詳細設定画面から戻ってきた時に自動的に保存処理を実行
+      _save();
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -387,12 +410,15 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
           _loadData(data);
           return Form(
             key: _formKey,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // 予測開始日
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // 予測開始日
                   _buildField(
                     '予測開始日 (yyyy/mm/dd)',
                     _forecastStartDateController,
@@ -447,6 +473,17 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                           });
                         },
                         child: const Text('常に目標額を貯金'),
+                      ),
+                      const Spacer(),
+                      OutlinedButton.icon(
+                        onPressed: _openSavingsDetail,
+                        icon: const Icon(Icons.tune, size: 16),
+                        label: const Text('貯金詳細設定'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          textStyle: const TextStyle(fontSize: 13),
+                          visualDensity: VisualDensity.compact,
+                        ),
                       ),
                     ],
                   ),
@@ -514,23 +551,38 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                     },
                   ),
 
-                const SizedBox(height: 32),
-                ElevatedButton(
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
                   onPressed: _isSaving ? null : _save,
-                  child: _isSaving
+                  icon: _isSaving
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('保存する'),
+                      : const Icon(Icons.save),
+                  label: const Text('保存する'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                 ),
-              ],
+              ),
             ),
           ),
-        );
-      },
-    ),
+        ],
+      ),
+    );
+  },
+      ),
     );
   }
 

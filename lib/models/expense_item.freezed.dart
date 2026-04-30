@@ -15,7 +15,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ExpenseItem {
 
- String get id; String get name; int get cost; int get order; String? get targetDate;
+ String get id; String get name; int get cost; int get order; String? get targetDate;// yyyy/mm 形式
+ int get savingByPayment;
 /// Create a copy of ExpenseItem
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +29,16 @@ $ExpenseItemCopyWith<ExpenseItem> get copyWith => _$ExpenseItemCopyWithImpl<Expe
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ExpenseItem&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.cost, cost) || other.cost == cost)&&(identical(other.order, order) || other.order == order)&&(identical(other.targetDate, targetDate) || other.targetDate == targetDate));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ExpenseItem&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.cost, cost) || other.cost == cost)&&(identical(other.order, order) || other.order == order)&&(identical(other.targetDate, targetDate) || other.targetDate == targetDate)&&(identical(other.savingByPayment, savingByPayment) || other.savingByPayment == savingByPayment));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,cost,order,targetDate);
+int get hashCode => Object.hash(runtimeType,id,name,cost,order,targetDate,savingByPayment);
 
 @override
 String toString() {
-  return 'ExpenseItem(id: $id, name: $name, cost: $cost, order: $order, targetDate: $targetDate)';
+  return 'ExpenseItem(id: $id, name: $name, cost: $cost, order: $order, targetDate: $targetDate, savingByPayment: $savingByPayment)';
 }
 
 
@@ -48,7 +49,7 @@ abstract mixin class $ExpenseItemCopyWith<$Res>  {
   factory $ExpenseItemCopyWith(ExpenseItem value, $Res Function(ExpenseItem) _then) = _$ExpenseItemCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, int cost, int order, String? targetDate
+ String id, String name, int cost, int order, String? targetDate, int savingByPayment
 });
 
 
@@ -65,14 +66,15 @@ class _$ExpenseItemCopyWithImpl<$Res>
 
 /// Create a copy of ExpenseItem
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? cost = null,Object? order = null,Object? targetDate = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? cost = null,Object? order = null,Object? targetDate = freezed,Object? savingByPayment = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,cost: null == cost ? _self.cost : cost // ignore: cast_nullable_to_non_nullable
 as int,order: null == order ? _self.order : order // ignore: cast_nullable_to_non_nullable
 as int,targetDate: freezed == targetDate ? _self.targetDate : targetDate // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,savingByPayment: null == savingByPayment ? _self.savingByPayment : savingByPayment // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 
@@ -157,10 +159,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  int cost,  int order,  String? targetDate)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  int cost,  int order,  String? targetDate,  int savingByPayment)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ExpenseItem() when $default != null:
-return $default(_that.id,_that.name,_that.cost,_that.order,_that.targetDate);case _:
+return $default(_that.id,_that.name,_that.cost,_that.order,_that.targetDate,_that.savingByPayment);case _:
   return orElse();
 
 }
@@ -178,10 +180,10 @@ return $default(_that.id,_that.name,_that.cost,_that.order,_that.targetDate);cas
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  int cost,  int order,  String? targetDate)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  int cost,  int order,  String? targetDate,  int savingByPayment)  $default,) {final _that = this;
 switch (_that) {
 case _ExpenseItem():
-return $default(_that.id,_that.name,_that.cost,_that.order,_that.targetDate);case _:
+return $default(_that.id,_that.name,_that.cost,_that.order,_that.targetDate,_that.savingByPayment);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -198,10 +200,10 @@ return $default(_that.id,_that.name,_that.cost,_that.order,_that.targetDate);cas
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  int cost,  int order,  String? targetDate)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  int cost,  int order,  String? targetDate,  int savingByPayment)?  $default,) {final _that = this;
 switch (_that) {
 case _ExpenseItem() when $default != null:
-return $default(_that.id,_that.name,_that.cost,_that.order,_that.targetDate);case _:
+return $default(_that.id,_that.name,_that.cost,_that.order,_that.targetDate,_that.savingByPayment);case _:
   return null;
 
 }
@@ -213,7 +215,7 @@ return $default(_that.id,_that.name,_that.cost,_that.order,_that.targetDate);cas
 @JsonSerializable()
 
 class _ExpenseItem implements ExpenseItem {
-  const _ExpenseItem({required this.id, required this.name, required this.cost, required this.order, this.targetDate});
+  const _ExpenseItem({required this.id, required this.name, required this.cost, required this.order, this.targetDate, this.savingByPayment = 0});
   factory _ExpenseItem.fromJson(Map<String, dynamic> json) => _$ExpenseItemFromJson(json);
 
 @override final  String id;
@@ -221,6 +223,8 @@ class _ExpenseItem implements ExpenseItem {
 @override final  int cost;
 @override final  int order;
 @override final  String? targetDate;
+// yyyy/mm 形式
+@override@JsonKey() final  int savingByPayment;
 
 /// Create a copy of ExpenseItem
 /// with the given fields replaced by the non-null parameter values.
@@ -235,16 +239,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ExpenseItem&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.cost, cost) || other.cost == cost)&&(identical(other.order, order) || other.order == order)&&(identical(other.targetDate, targetDate) || other.targetDate == targetDate));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ExpenseItem&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.cost, cost) || other.cost == cost)&&(identical(other.order, order) || other.order == order)&&(identical(other.targetDate, targetDate) || other.targetDate == targetDate)&&(identical(other.savingByPayment, savingByPayment) || other.savingByPayment == savingByPayment));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,cost,order,targetDate);
+int get hashCode => Object.hash(runtimeType,id,name,cost,order,targetDate,savingByPayment);
 
 @override
 String toString() {
-  return 'ExpenseItem(id: $id, name: $name, cost: $cost, order: $order, targetDate: $targetDate)';
+  return 'ExpenseItem(id: $id, name: $name, cost: $cost, order: $order, targetDate: $targetDate, savingByPayment: $savingByPayment)';
 }
 
 
@@ -255,7 +259,7 @@ abstract mixin class _$ExpenseItemCopyWith<$Res> implements $ExpenseItemCopyWith
   factory _$ExpenseItemCopyWith(_ExpenseItem value, $Res Function(_ExpenseItem) _then) = __$ExpenseItemCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, int cost, int order, String? targetDate
+ String id, String name, int cost, int order, String? targetDate, int savingByPayment
 });
 
 
@@ -272,14 +276,15 @@ class __$ExpenseItemCopyWithImpl<$Res>
 
 /// Create a copy of ExpenseItem
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? cost = null,Object? order = null,Object? targetDate = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? cost = null,Object? order = null,Object? targetDate = freezed,Object? savingByPayment = null,}) {
   return _then(_ExpenseItem(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,cost: null == cost ? _self.cost : cost // ignore: cast_nullable_to_non_nullable
 as int,order: null == order ? _self.order : order // ignore: cast_nullable_to_non_nullable
 as int,targetDate: freezed == targetDate ? _self.targetDate : targetDate // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,savingByPayment: null == savingByPayment ? _self.savingByPayment : savingByPayment // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 
