@@ -2,19 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/expense_item.dart';
 
-/// 各費用項目の「支払い後の目標貯金額」を個別設定する画面
-///
-/// pop 時に返す値: SavingsDetailResult
+/// 各費用項目の「支払い後の目標貯金額」や「必要な貯金目標額」を設定する画面
 ///   - expenses: 更新後の費用リスト
-///   - shouldUncheckAlwaysKeep: 詳細設定が1つ以上あれば true
 class SavingsDetailScreen extends StatefulWidget {
   final List<ExpenseItem> expenses;
-  final int savingsGoal;
 
   const SavingsDetailScreen({
     super.key,
     required this.expenses,
-    required this.savingsGoal,
   });
 
   @override
@@ -80,13 +75,10 @@ class _SavingsDetailScreenState extends State<SavingsDetailScreen> {
       updatedExpenses.add(_expenses[i].copyWith(savingByPayment: val));
     }
 
-    final hasAnyDetail = updatedExpenses.any((e) => e.savingByPayment > 0);
-
     Navigator.pop(
       context,
       SavingsDetailResult(
         expenses: updatedExpenses,
-        shouldUncheckAlwaysKeep: hasAnyDetail,
       ),
     );
   }
@@ -98,7 +90,7 @@ class _SavingsDetailScreenState extends State<SavingsDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('貯金詳細設定'),
+        title: const Text('貯金目標設定'),
         actions: [
           TextButton.icon(
             onPressed: _clearAll,
@@ -120,7 +112,7 @@ class _SavingsDetailScreenState extends State<SavingsDetailScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Text(
                 '各費用項目の支払い後に維持したい貯金額を設定します。\n'
-                '未入力の項目は「必要な貯金目標額（¥${NumberFormat("#,###").format(widget.savingsGoal)}）」を使用します。',
+                '未入力の項目は「¥0」を使用します。',
                 style: TextStyle(
                   fontSize: 13,
                   color: colorScheme.onPrimaryContainer,
@@ -129,7 +121,7 @@ class _SavingsDetailScreenState extends State<SavingsDetailScreen> {
             ),
             Expanded(
               child: ListView.separated(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 itemCount: _expenses.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
@@ -165,8 +157,7 @@ class _SavingsDetailScreenState extends State<SavingsDetailScreen> {
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
                               labelText: '支払い後の目標貯金額（円）',
-                              hintText:
-                                  '未入力: ¥${NumberFormat("#,###").format(widget.savingsGoal)} を使用',
+                              hintText: '未入力: ¥0 を使用',
                               border: const OutlineInputBorder(),
                               prefixText: '¥ ',
                               suffixIcon: _controllers[index].text.isNotEmpty
@@ -223,10 +214,8 @@ class _SavingsDetailScreenState extends State<SavingsDetailScreen> {
 
 class SavingsDetailResult {
   final List<ExpenseItem> expenses;
-  final bool shouldUncheckAlwaysKeep;
 
   const SavingsDetailResult({
     required this.expenses,
-    required this.shouldUncheckAlwaysKeep,
   });
 }

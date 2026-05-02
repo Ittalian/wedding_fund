@@ -19,13 +19,11 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _forecastStartDateController;
   late TextEditingController _monthlyExpenseController;
-  late TextEditingController _savingsGoalController;
   List<ExpenseItem> _expenses = [];
   _InfoMode _mode = _InfoMode.expense;
 
   bool _isSaving = false;
   bool _isInitialized = false;
-  bool _alwaysKeepSavingsGoal = false;
 
   static const List<Map<String, String>> _defaultItems = [
     {'id': 'engagement_ring', 'name': '婚約指輪'},
@@ -40,14 +38,12 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
     super.initState();
     _forecastStartDateController = TextEditingController();
     _monthlyExpenseController = TextEditingController();
-    _savingsGoalController = TextEditingController();
   }
 
   @override
   void dispose() {
     _forecastStartDateController.dispose();
     _monthlyExpenseController.dispose();
-    _savingsGoalController.dispose();
     super.dispose();
   }
 
@@ -55,8 +51,6 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
     if (!_isInitialized) {
       _forecastStartDateController.text = data.forecastStartDate ?? '';
       _monthlyExpenseController.text = data.monthlyExpense.toString();
-      _savingsGoalController.text = data.savingsGoal.toString();
-      _alwaysKeepSavingsGoal = data.alwaysKeepSavingsGoal;
 
       // expenses が空の場合はデフォルト5項目を追加
       if (data.expenses.isEmpty) {
@@ -323,16 +317,12 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
       MaterialPageRoute(
         builder: (_) => SavingsDetailScreen(
           expenses: _expenses,
-          savingsGoal: int.tryParse(_savingsGoalController.text) ?? 0,
         ),
       ),
     );
     if (result != null) {
       setState(() {
         _expenses = result.expenses;
-        if (result.shouldUncheckAlwaysKeep) {
-          _alwaysKeepSavingsGoal = false;
-        }
       });
       // 詳細設定画面から戻ってきた時に自動的に保存処理を実行
       _save();
@@ -349,8 +339,6 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
     final data = BasicInfoData(
       forecastStartDate: startDate.isEmpty ? null : startDate,
       monthlyExpense: int.tryParse(_monthlyExpenseController.text) ?? 0,
-      savingsGoal: int.tryParse(_savingsGoalController.text) ?? 0,
-      alwaysKeepSavingsGoal: _alwaysKeepSavingsGoal,
       expenses: _expenses,
     );
 
@@ -442,50 +430,19 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                       return null;
                     },
                   ),
-                  // 必要な貯金目標額
-                  _buildField(
-                    '必要な貯金目標額 (円)', 
-                    _savingsGoalController,
-                    validator: (value) {
-                      if (value != null && value.isNotEmpty && int.tryParse(value) == null) {
-                        return '数値で入力してください';
-                      }
-                      return null;
-                    },
-                  ),
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _alwaysKeepSavingsGoal,
-                        onChanged: (bool? value) {
-                          setState(() {
-                            _alwaysKeepSavingsGoal = value ?? false;
-                          });
-                        },
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: OutlinedButton.icon(
+                      onPressed: _openSavingsDetail,
+                      icon: const Icon(Icons.tune, size: 16),
+                      label: const Text('貯金目標設定', style: TextStyle(color: Colors.black)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        textStyle: const TextStyle(fontSize: 13),
+                        visualDensity: VisualDensity.compact,
                       ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _alwaysKeepSavingsGoal = !_alwaysKeepSavingsGoal;
-                          });
-                        },
-                        child: const Text('常に目標額を貯金'),
-                      ),
-                      const Spacer(),
-                      OutlinedButton.icon(
-                        onPressed: _openSavingsDetail,
-                        icon: const Icon(Icons.tune, size: 16),
-                        label: const Text('貯金詳細設定'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          textStyle: const TextStyle(fontSize: 13),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
 
                 const SizedBox(height: 16),

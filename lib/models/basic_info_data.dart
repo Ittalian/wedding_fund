@@ -12,8 +12,6 @@ abstract class BasicInfoData with _$BasicInfoData {
     String? forecastStartDate, // yyyy/mm/dd 形式
     @Default(0) int monthlyExpense, // 月の固定出費
     @Default([]) List<ExpenseItem> expenses,
-    @Default(0) int savingsGoal,
-    @Default(false) bool alwaysKeepSavingsGoal,
   }) = _BasicInfoData;
 
   factory BasicInfoData.fromJson(Map<String, dynamic> json) =>
@@ -21,6 +19,6 @@ abstract class BasicInfoData with _$BasicInfoData {
 
   int get totalRequiredFunds {
     final expenseTotal = expenses.fold<int>(0, (sum, item) => sum + item.cost);
-    return expenseTotal + savingsGoal;
+    return expenseTotal;
   }
 }

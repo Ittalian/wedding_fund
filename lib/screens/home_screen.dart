@@ -211,6 +211,60 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
             const SizedBox(height: 8),
+            // 支払い後貯金額の減額提案
+            Builder(builder: (context) {
+              final sbpReductionSuggestions = calcData['savingByPaymentReductionSuggestions'] as List<dynamic>?;
+              if (sbpReductionSuggestions == null || sbpReductionSuggestions.isEmpty) return const SizedBox.shrink();
+              return Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.savings, color: Colors.orange, size: 20),
+                          SizedBox(width: 8),
+                          Text('支払い後貯金額の見直し', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ...sbpReductionSuggestions.map((s) {
+                        final name = s['name'] as String;
+                        final currentAmount = s['currentAmount'] as int;
+                        final suggestedAmount = s['suggestedAmount'] as int;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 4,
+                            children: [
+                              Text('・$name の支払い後貯金を', style: const TextStyle(fontSize: 13)),
+                              ActionChip(
+                                label: Text(
+                                  fmt.format(suggestedAmount),
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                                backgroundColor: Colors.orange,
+                                padding: EdgeInsets.zero,
+                                labelPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: -2),
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () => _applySavingByPaymentSuggestion(context, name, currentAmount, suggestedAmount, fmt),
+                              ),
+                              const Text('以下にする', style: TextStyle(fontSize: 13)),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 8),
             // 時期提案
             Card(
               elevation: 2,
@@ -279,9 +333,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final advanceSuggestions = calcData['advanceSuggestions'] as List<dynamic>?;
     final increaseSuggestions = calcData['increaseSuggestions'] as List<dynamic>?;
+    final savingByPaymentIncreaseSuggestions = calcData['savingByPaymentIncreaseSuggestions'] as List<dynamic>?;
     final hasOptimization =
         (advanceSuggestions != null && advanceSuggestions.isNotEmpty) ||
-        (increaseSuggestions != null && increaseSuggestions.isNotEmpty);
+        (increaseSuggestions != null && increaseSuggestions.isNotEmpty) ||
+        (savingByPaymentIncreaseSuggestions != null && savingByPaymentIncreaseSuggestions.isNotEmpty);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -433,6 +489,61 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 final currentCost = s['currentCost'] as int;
                                 _applyIncreaseSuggestion(context, name, currentCost, maxCost, fmt);
                               },
+                            ),
+                            const Text('まで増やせます', style: TextStyle(fontSize: 13)),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ),
+          // Approach C: 支払い後貯金額の増額
+          if (savingByPaymentIncreaseSuggestions != null && savingByPaymentIncreaseSuggestions.isNotEmpty)
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.savings, color: Colors.amber, size: 20),
+                        SizedBox(width: 8),
+                        Text('支払い後貯金額を増やせます',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ...savingByPaymentIncreaseSuggestions.map((s) {
+                      final name = s['name'] as String;
+                      final maxAmount = s['maxAmount'] as int;
+                      final currentAmount = s['currentAmount'] as int;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 4,
+                          children: [
+                            Text('・$name を', style: const TextStyle(fontSize: 13)),
+                            ActionChip(
+                              label: Text(
+                                fmt.format(maxAmount),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              backgroundColor: Colors.amber.shade700,
+                              padding: EdgeInsets.zero,
+                              labelPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: -2),
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => _applySavingByPaymentSuggestion(context, name, currentAmount, maxAmount, fmt),
                             ),
                             const Text('まで増やせます', style: TextStyle(fontSize: 13)),
                           ],
@@ -628,20 +739,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     int suggestedCost,
     NumberFormat fmt,
   ) async {
-    final isSavingsGoal = itemName == '目標貯金';
-    final label = isSavingsGoal ? '目標貯金' : itemName;
     // 変更前の金額を basicInfo から取得
     final basicInfo = ref.read(basicInfoDataProvider).value;
-    final currentCost = isSavingsGoal
-        ? (basicInfo?.savingsGoal ?? 0)
-        : (basicInfo == null ? 0 : basicInfo.expenses.firstWhere((e) => e.name == itemName, orElse: () => basicInfo.expenses.first).cost);
+    final currentCost = (basicInfo == null
+        ? 0
+        : basicInfo.expenses
+            .firstWhere((e) => e.name == itemName,
+                orElse: () => basicInfo.expenses.first)
+            .cost);
     await _showConfirmDialog(
       context: context,
-      message: '「$label」の金額を\n${fmt.format(currentCost)}から${fmt.format(suggestedCost)}\n　に変更しますか？',
+      message:
+          '「$itemName」の金額を\n${fmt.format(currentCost)}から${fmt.format(suggestedCost)}\n　に変更しますか？',
       onConfirm: () => _saveBasicInfoChange((info) {
-        if (isSavingsGoal) {
-          return info.copyWith(savingsGoal: suggestedCost);
-        }
         final updated = info.expenses.map((e) {
           if (e.name == itemName) return e.copyWith(cost: suggestedCost);
           return e;
@@ -694,7 +804,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  /// 増額提案を適用（費用項目のcost または savingsGoalを変更）
+  /// 増額提案を適用（費用項目のcostを変更）
   Future<void> _applyIncreaseSuggestion(
     BuildContext context,
     String itemName,
@@ -702,15 +812,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     int maxCost,
     NumberFormat fmt,
   ) async {
-    final isSavingsGoal = itemName == '目標貯金';
-    final label = isSavingsGoal ? '目標貯金' : itemName;
     await _showConfirmDialog(
       context: context,
-      message: '「$label」の金額を\n${fmt.format(currentCost)}から${fmt.format(maxCost)}\n　に変更しますか？',
+      message:
+          '「$itemName」の金額を\n${fmt.format(currentCost)}から${fmt.format(maxCost)}\n　に変更しますか？',
       onConfirm: () => _saveBasicInfoChange((info) {
-        if (isSavingsGoal) {
-          return info.copyWith(savingsGoal: maxCost);
-        }
         final updated = info.expenses.map((e) {
           if (e.name == itemName) return e.copyWith(cost: maxCost);
           return e;
@@ -719,4 +825,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }),
     );
   }
+  /// savingByPayment提案を適用（減額・増額兼用）
+  Future<void> _applySavingByPaymentSuggestion(
+    BuildContext context,
+    String itemName,
+    int currentAmount,
+    int newAmount,
+    NumberFormat fmt,
+  ) async {
+    await _showConfirmDialog(
+      context: context,
+      message: '「$itemName」の支払い後貯金額を ${fmt.format(currentAmount)} から ${fmt.format(newAmount)} に変更しますか？',
+      onConfirm: () => _saveBasicInfoChange((info) {
+        final updated = info.expenses.map((e) {
+          if (e.name == itemName) return e.copyWith(savingByPayment: newAmount);
+          return e;
+        }).toList();
+        return info.copyWith(expenses: updated);
+      }),
+    );
+  }
+
 }
